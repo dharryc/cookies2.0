@@ -26,3 +26,40 @@ This is a little toy site I've made that allows you to keep track of gifts, birt
 - password salting + hashing for authentication
 - JWT on login for authorization
 - Can only see families that you're a part of!
+
+
+### Database Architecture
+
+#### user table
+- id pk
+- username nn
+- passwordHash nn
+- salt nn
+- birthday
+
+#### price range table(?)
+- id pk nn
+- name nn
+
+#### item table
+- id pk
+- user_id fk nn
+- price range fk
+- link
+- description    <!-- Either link or description need to be not null, but either could be null -->
+- purchased
+
+#### Family table
+- id pk
+- family name nn
+
+#### member in family table
+- id pk
+- userid fk nn
+- familyid fk nn
+
+#### item in family table
+- id pk
+- itemid fk nn
+- familyid fk nn
+- purchasedby fk (userid)
