@@ -27,6 +27,10 @@ This is a little toy site I've made that allows you to keep track of gifts, birt
 - JWT on login for authorization
 - Can only see families that you're a part of!
 
+##
+##
+##
+
 
 ### Database Architecture
 
