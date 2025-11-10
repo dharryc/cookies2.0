@@ -28,8 +28,6 @@ This is a little toy site I've made that allows you to keep track of gifts, birt
 - Can only see families that you're a part of!
 
 ##
-##
-##
 
 
 ### Database Architecture
