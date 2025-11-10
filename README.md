@@ -38,6 +38,9 @@ Users can create new families from a create family page. In order to add a membe
 <p>
 Each item will contain either or both a link or a description that will describe or link to others what they want. They will also include a price range for the item so that other family members are able to sort by price category.
 </p>
+
+##
+
 ### Database Architecture
 
 #### user table
