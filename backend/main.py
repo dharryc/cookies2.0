@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-import jwt
+import jwt, sqlite3
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
@@ -14,17 +14,14 @@ SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-
-fake_users_db = {
-    "johndoe": {
-        "username": "johndoe",
-        "full_name": "John Doe",
-        "email": "johndoe@example.com",
-        "hashed_password": "$argon2id$v=19$m=65536,t=3,p=4$wagCPXjifgvUFBzq4hqe3w$CYaIb8sB+wtD+Vu/P4uod1+Qof8h+1g7bbDlBID48Rc",
-        "disabled": False,
-    }
-}
-
+# Database setup
+con = sqlite3.connect('storage.db', check_same_thread=False)
+con.row_factory = sqlite3.Row
+cur = con.cursor()
+with open('init.sql', 'r') as f:
+    sql_script = f.read()
+con.executescript(sql_script)
+con.commit()
 
 class Token(BaseModel):
     access_token: str
@@ -33,17 +30,6 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: str | None = None
-
-
-class User(BaseModel):
-    username: str
-    email: str | None = None
-    full_name: str | None = None
-    disabled: bool | None = None
-
-
-class UserInDB(User):
-    hashed_password: str
 
 
 password_hash = PasswordHash.recommended()
@@ -85,6 +71,54 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def get_items_in_pod_not_owned(conn: sqlite3.Connection, pod_id: int, user_id: int) -> list:
+    """Return all items that are in `pod_id` but not owned by `user_id`.
+
+    Args:
+        conn: an open sqlite3.Connection (caller manages lifecycle).
+        pod_id: the pod id to look up.
+        user_id: the id of the user whose items should be excluded.
+
+    Returns:
+        A list of dicts representing rows from the `item` table.
+
+    Notes:
+        - Expects schema with `item(id, user_id, ...)` and `item_in_pod(item_id, pod_id)`.
+        - Uses the provided connection's row_factory if set; otherwise sets it locally.
+    """
+    close_after = False
+
+    # Ensure we get mapping-like rows
+    need_restore = False
+    try:
+        row_factory = conn.row_factory
+    except Exception:
+        row_factory = None
+
+    if row_factory is None:
+        conn.row_factory = sqlite3.Row
+        need_restore = True
+
+    sql = """
+    SELECT item.*
+    FROM item
+    JOIN item_in_pod ON item.id = item_in_pod.item_id
+    WHERE item_in_pod.pod_id = ?
+      AND (item.user_id != ?)
+    """
+
+    cur = conn.execute(sql, (pod_id, user_id))
+    rows = cur.fetchall()
+
+    # Convert sqlite3.Row -> dict for convenience
+    result = [dict(row) for row in rows]
+
+    if need_restore:
+        conn.row_factory = None
+
+    return result
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
@@ -145,3 +179,8 @@ async def read_own_items(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
     return [{"item_id": "Foo", "owner": current_user.username}]
+
+@app.post("/hash-test")
+async def hash_test(testString: str):
+    hashed = password_hash.hash(testString)
+    return {"testString": testString, "hashed_testString": hashed}
