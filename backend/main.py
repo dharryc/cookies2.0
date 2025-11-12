@@ -1,12 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
-
 import jwt, sqlite3
 from fastapi import Depends, FastAPI, HTTPException, Request, status, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
-from pydantic import BaseModel
 from models.cookieUser import CookieUser, CookieUserDTO, CookieUserResponse
 from models.item import Item, ItemDTO
 from models.itemInPod import ItemInPod, ItemInPodDTO
@@ -32,10 +30,6 @@ con.commit()
 
 
 async def get_token_from_request(request: Request) -> str:
-    """
-    Accept token from Authorization: Bearer <token> or from the access_token cookie.
-    Raises 401 if neither is present.
-    """
     auth = request.headers.get("Authorization")
     if auth and auth.lower().startswith("bearer "):
         return auth.split(" ", 1)[1]
@@ -164,6 +158,6 @@ async def create_user_test(userData : Annotated[CookieUserDTO, Depends()],):
 async def validate_token(token: Annotated[str, Depends(get_token_from_request)]):
     try:
         jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return {"valid": True}
+        return  True
     except InvalidTokenError:
-        return {"valid": False}
+        return False
