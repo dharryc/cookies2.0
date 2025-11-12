@@ -2,11 +2,18 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import jwt, sqlite3
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
 from pydantic import BaseModel
+from models.cookieUser import CookieUser, CookieUserDTO, CookieUserResponse
+from models.item import Item, ItemDTO
+from models.itemInPod import ItemInPod, ItemInPodDTO
+from models.pod import Pod, PodCreateDTO
+from models.podMember import PodMember, PodMemberDTO
+from models.priceRange import PriceRange, PriceRangeDTO
+
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -22,10 +29,6 @@ with open('init.sql', 'r') as f:
     sql_script = f.read()
 con.executescript(sql_script)
 con.commit()
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
 
 
 class TokenData(BaseModel):
@@ -47,14 +50,17 @@ def get_password_hash(password):
     return password_hash.hash(password)
 
 
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
+def get_user(username: str):
+    query = "SELECT * FROM cookie_user WHERE username = ?"
+    cur.execute(query, (username,))
+    row = cur.fetchone()
+    if row:
+        return CookieUser(**dict(row))
+    return None
 
 
-def authenticate_user(fake_db, username: str, password: str):
-    user = get_user(fake_db, username)
+def authenticate_user(username: str, password: str):
+    user = get_user(username)
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -73,54 +79,6 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-def get_items_in_pod_not_owned(conn: sqlite3.Connection, pod_id: int, user_id: int) -> list:
-    """Return all items that are in `pod_id` but not owned by `user_id`.
-
-    Args:
-        conn: an open sqlite3.Connection (caller manages lifecycle).
-        pod_id: the pod id to look up.
-        user_id: the id of the user whose items should be excluded.
-
-    Returns:
-        A list of dicts representing rows from the `item` table.
-
-    Notes:
-        - Expects schema with `item(id, user_id, ...)` and `item_in_pod(item_id, pod_id)`.
-        - Uses the provided connection's row_factory if set; otherwise sets it locally.
-    """
-    close_after = False
-
-    # Ensure we get mapping-like rows
-    need_restore = False
-    try:
-        row_factory = conn.row_factory
-    except Exception:
-        row_factory = None
-
-    if row_factory is None:
-        conn.row_factory = sqlite3.Row
-        need_restore = True
-
-    sql = """
-    SELECT item.*
-    FROM item
-    JOIN item_in_pod ON item.id = item_in_pod.item_id
-    WHERE item_in_pod.pod_id = ?
-      AND (item.user_id != ?)
-    """
-
-    cur = conn.execute(sql, (pod_id, user_id))
-    rows = cur.fetchall()
-
-    # Convert sqlite3.Row -> dict for convenience
-    result = [dict(row) for row in rows]
-
-    if need_restore:
-        conn.row_factory = None
-
-    return result
-
-
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -129,22 +87,21 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username is None:
+        username = payload.get("sub") or payload.get("username")
+        if not username:
             raise credentials_exception
-        token_data = TokenData(username=username)
     except InvalidTokenError:
         raise credentials_exception
-    user = get_user(fake_users_db, username=token_data.username)
+    user = get_user(username=username)
     if user is None:
         raise credentials_exception
     return user
 
 
 async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[CookieUser, Depends(get_current_user)],
 ):
-    if current_user.disabled:
+    if not current_user:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
@@ -152,8 +109,9 @@ async def get_current_active_user(
 @app.post("/token")
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-) -> Token:
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    response: Response,
+):
+    user = authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -164,23 +122,27 @@ async def login_for_access_token(
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return Token(access_token=access_token, token_type="bearer")
 
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        # secure=True ### SET THIS IN PROD
+    )
+    
+    return {"msg": "Logged in"}
 
-@app.get("/users/me/", response_model=User)
-async def read_users_me(
-    current_user: Annotated[User, Depends(get_current_active_user)],
-):
-    return current_user
+@app.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie(key="access_token")
+    return {"msg": "Successfully logged out"}
 
+@app.post("/user")
+async def create_user_test(userData : Annotated[CookieUserDTO, Depends()],):
+    hashed_password = get_password_hash(userData.unhashed_password)
+    query = "INSERT INTO cookie_user (username, first_name, surname, birthday, hashed_password) VALUES (?, ?, ?, ?, ?)"
+    cur.execute(query, (userData.username, userData.first_name, userData.surname, userData.birthday or None, hashed_password))
+    con.commit()
+    return {"msg": "User created successfully"}
 
-@app.get("/users/me/items/")
-async def read_own_items(
-    current_user: Annotated[User, Depends(get_current_active_user)],
-):
-    return [{"item_id": "Foo", "owner": current_user.username}]
-
-@app.post("/hash-test")
-async def hash_test(testString: str):
-    hashed = password_hash.hash(testString)
-    return {"testString": testString, "hashed_testString": hashed}

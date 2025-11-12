@@ -1,11 +1,11 @@
 from pydantic import BaseModel
 from typing import Optional
 
-class itemInPodDTO(BaseModel):
+class ItemInPodDTO(BaseModel):
     item_id: int
     pod_id: int
     
-class itemInPod(BaseModel):
+class ItemInPod(BaseModel):
     id: int
     item_id: int
     pod_id: int

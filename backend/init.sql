@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS cookie_user (
 	username varchar(100) NOT NULL UNIQUE,
 	first_name varchar(100) NOT NULL,
 	surname varchar(100) NOT NULL,
-	password_hash text NOT NULL,
+	hashed_password text NOT NULL,
 	birthday date
 );
 
@@ -60,3 +60,9 @@ CREATE TABLE IF NOT EXISTS item_in_pod (
 	FOREIGN KEY (purchased_by) REFERENCES cookie_user(id) ON DELETE SET NULL
 );
 
+create table if not exists repeating_events(
+	id integer primary key autoincrement,
+	month_day varchar(5) not null,
+	repeats_frequency int,
+	foreign key (repeats_frequency) references frequency(id) on delete cascade
+);

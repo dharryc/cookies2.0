@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional, Annotated
+from pydantic import BaseModel, model_validator
+from typing import Optional
 
 class ItemDTO(BaseModel):
     userName: str
@@ -7,17 +7,17 @@ class ItemDTO(BaseModel):
     link: Optional[str] = None
     description: Optional[str] = None
 
-    @root_validator
-    def link_or_description_must_exist(cls, values):
-        link = values.get("link")
-        desc = values.get("description")
+    @model_validator(mode='after')
+    def link_or_description_must_exist(self):
+        link = self.link
+        desc = self.description
 
         def nonempty(s):
             return s is not None and isinstance(s, str) and s.strip() != ""
 
         if not (nonempty(link) or nonempty(desc)):
             raise ValueError("either link or description must be provided and non-empty")
-        return values
+        return self
 
 
 class Item(BaseModel):
@@ -28,14 +28,14 @@ class Item(BaseModel):
     description: Optional[str] = None
     purchased: bool
     
-    @root_validator
-    def link_or_description_must_exist(cls, values):
-        link = values.get("link")
-        desc = values.get("description")
+    @model_validator(mode='after')
+    def link_or_description_must_exist(self):
+        link = self.link
+        desc = self.description
 
         def nonempty(s):
             return s is not None and isinstance(s, str) and s.strip() != ""
 
         if not (nonempty(link) or nonempty(desc)):
             raise ValueError("either link or description must be provided and non-empty")
-        return values
+        return self
