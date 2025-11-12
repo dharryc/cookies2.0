@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import jwt, sqlite3
-from fastapi import Depends, FastAPI, HTTPException, status, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, status, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
@@ -31,8 +31,22 @@ con.executescript(sql_script)
 con.commit()
 
 
-class TokenData(BaseModel):
-    username: str | None = None
+async def get_token_from_request(request: Request) -> str:
+    """
+    Accept token from Authorization: Bearer <token> or from the access_token cookie.
+    Raises 401 if neither is present.
+    """
+    auth = request.headers.get("Authorization")
+    if auth and auth.lower().startswith("bearer "):
+        return auth.split(" ", 1)[1]
+    token = request.cookies.get("access_token")
+    if token:
+        return token
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 password_hash = PasswordHash.recommended()
@@ -146,3 +160,10 @@ async def create_user_test(userData : Annotated[CookieUserDTO, Depends()],):
     con.commit()
     return {"msg": "User created successfully"}
 
+@app.get("/validate")
+async def validate_token(token: Annotated[str, Depends(get_token_from_request)]):
+    try:
+        jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {"valid": True}
+    except InvalidTokenError:
+        return {"valid": False}
