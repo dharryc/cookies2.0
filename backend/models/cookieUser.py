@@ -9,7 +9,6 @@ class CookieUserDTO(BaseModel):
     unhashed_password: str
 
 class CookieUserResponse(BaseModel):
-    """Response model for user data (no password fields)"""
     id: int
     username: str
     first_name: str
@@ -23,3 +22,7 @@ class CookieUser(BaseModel):
     surname: str
     birthday: Optional[str] = None
     hashed_password: str
+    
+class CookieUserLoginDTO(BaseModel):
+    username: str
+    password: str

@@ -19,8 +19,9 @@
   }
 }
 
+/* let Tailwind utility classes control the page background; keep color/typography vars */
 body {
-  background: var(--background);
+  background: transparent;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }

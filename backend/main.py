@@ -1,11 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
+from fastapi.middleware.cors import CORSMiddleware
 import jwt, sqlite3
 from fastapi import Depends, FastAPI, HTTPException, Request, status, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
-from models.cookieUser import CookieUser, CookieUserDTO, CookieUserResponse
+from models.cookieUser import CookieUser, CookieUserDTO, CookieUserResponse, CookieUserLoginDTO
 from models.item import Item, ItemDTO
 from models.itemInPod import ItemInPod, ItemInPodDTO
 from models.pod import Pod, PodCreateDTO
@@ -45,10 +46,22 @@ async def get_token_from_request(request: Request) -> str:
 
 password_hash = PasswordHash.recommended()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
 app = FastAPI()
 
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,    # required to accept/send cookies
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def verify_password(plain_password, hashed_password):
     return password_hash.verify(plain_password, hashed_password)
@@ -71,9 +84,9 @@ def authenticate_user(username: str, password: str):
     user = get_user(username)
     if not user:
         return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
+    if verify_password(password, user.hashed_password):
+        return user
+    return False
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -87,23 +100,23 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub") or payload.get("username")
-        if not username:
-            raise credentials_exception
-    except InvalidTokenError:
-        raise credentials_exception
-    user = get_user(username=username)
-    if user is None:
-        raise credentials_exception
-    return user
+async def get_current_user(token: Annotated[str, Depends(get_token_from_request)]):
+     credentials_exception = HTTPException(
+         status_code=status.HTTP_401_UNAUTHORIZED,
+         detail="Could not validate credentials",
+         headers={"WWW-Authenticate": "Bearer"},
+     )
+     try:
+         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+         username = payload.get("sub") or payload.get("username")
+         if not username:
+             raise credentials_exception
+     except InvalidTokenError:
+         raise credentials_exception
+     user = get_user(username=username)
+     if user is None:
+         raise credentials_exception
+     return user
 
 
 async def get_current_active_user(
@@ -114,21 +127,17 @@ async def get_current_active_user(
     return current_user
 
 
-@app.post("/token")
+@app.post("/login")
 async def login_for_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    userData: CookieUserLoginDTO,
     response: Response,
 ):
-    user = authenticate_user(form_data.username, form_data.password)
+    user = authenticate_user(userData.username, userData.password)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return False
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": userData.username}, expires_delta=access_token_expires
     )
 
     response.set_cookie(
@@ -139,7 +148,7 @@ async def login_for_access_token(
         # secure=True ### SET THIS IN PROD
     )
     
-    return {"msg": "Logged in"}
+    return True
 
 @app.post("/logout")
 async def logout(response: Response):
@@ -157,7 +166,24 @@ async def create_user_test(userData : Annotated[CookieUserDTO, Depends()],):
 @app.get("/validate")
 async def validate_token(token: Annotated[str, Depends(get_token_from_request)]):
     try:
-        jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return  True
-    except InvalidTokenError:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return True
+    except InvalidTokenError as e:
         return False
+    
+@app.post("/new/pod")
+async def create_pod(
+    podData: PodCreateDTO,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    query = "INSERT INTO pod (name, description, owner_id) VALUES (?, ?, ?)"
+    cur.execute(query, (podData.name, podData.description or None, current_user.id))
+    pod_id = cur.lastrowid
+
+    # Add the owner as a member of the pod
+    member_query = "INSERT INTO pod_member (pod_id, user_id) VALUES (?, ?)"
+    cur.execute(member_query, (pod_id, current_user.id))
+
+    
+    con.commit()
+    return {"msg": "Pod created successfully", "pod_id": pod_id}
