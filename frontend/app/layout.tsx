@@ -1,10 +1,12 @@
 "use client";
 import apiUrl from "@/components/apiUrl";
 import LoginForm from "@/components/loginForm";
+import NavBar from "@/components/navBar";
+import { PodsProvider } from "@/components/PodsProvider";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import React, { useEffect, useState } from "react";
-import AuthProvider from "@/components/AuthProvider";
+import { usePathname } from "next/navigation";
 
 const validateUserSession = async (): Promise<boolean | string> => {
   const response = await fetch(`${apiUrl}/validate`, {
@@ -30,6 +32,11 @@ export default function RootLayout({
 }>) {
   const [loggedIn, setLoggedIn] = useState<boolean | string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const pathname = usePathname();
+
+  // Public routes that don't require authentication
+  const publicRoutes = ["/register"];
+  const isPublicRoute = publicRoutes.includes(pathname);
 
   useEffect(() => {
     let mounted = true;
@@ -44,6 +51,7 @@ export default function RootLayout({
       mounted = false;
     };
   }, []);
+
   if (loggedIn === null) {
     return (
       <html lang="en">
@@ -51,11 +59,22 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-50 dark:bg-zinc-900`}
         >
-          <AuthProvider loggedIn={loggedIn} setLoggedIn={setLoggedIn}>
             <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 font-sans">
               <div>Loading...</div>
             </div>
-          </AuthProvider>
+        </body>
+      </html>
+    );
+  }
+
+  if( isPublicRoute && loggedIn !== true ) {
+    return (
+      <html lang="en">
+        <title>Cookies Gifts - Register</title>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-50 dark:bg-zinc-900`}
+        >
+            {children}
         </body>
       </html>
     );
@@ -68,7 +87,6 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-50 dark:bg-zinc-900`}
         >
-          <AuthProvider loggedIn={loggedIn} setLoggedIn={setLoggedIn}>
             <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 px-4 py-12">
               <div className="w-full max-w-md">
               <div className="mb-6 text-center">
@@ -81,7 +99,6 @@ export default function RootLayout({
               </div>
             </div>
           </div>
-          </AuthProvider>
         </body>
       </html>
     );
@@ -92,85 +109,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-50 dark:bg-zinc-900`}
       >
-        <AuthProvider loggedIn={loggedIn} setLoggedIn={setLoggedIn}>
+        <PodsProvider>
           <div className="flex h-screen overflow-hidden">
-            {/* Left sidebar / navbar */}
-            <aside
-              className={`${
-                sidebarOpen ? "w-64" : "w-16"
-              } flex flex-col border-r border-zinc-200 bg-white transition-all duration-300 dark:border-zinc-700 dark:bg-zinc-900`}
-            >
-              <div className="flex h-full flex-col p-4">
-                <div className="mb-6 flex items-center justify-between">
-                  {sidebarOpen && (
-                    <div className="text-lg font-extrabold text-zinc-900 dark:text-zinc-100">
-                      Cookies Gifts
-                    </div>
-                  )}
-                  <button
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
-                    className="rounded p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                    aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                      className="h-5 w-5"
-                    >
-                      {sidebarOpen ? (
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M15.75 19.5L8.25 12l7.5-7.5"
-                        />
-                      ) : (
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                        />
-                      )}
-                    </svg>
-                  </button>
-                </div>
+            <NavBar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} setLoggedIn={setLoggedIn} />
 
-                <nav className="flex-1">
-                  {/* navigation items can go here */}
-                </nav>
-
-                <div className="mt-auto">
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(`${apiUrl}/logout`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          credentials: "include",
-                        });
-                        setLoggedIn(false);
-                      } catch (err) {
-                        console.error(err);
-                        setLoggedIn(false);
-                      }
-                    }}
-                    className="w-full rounded bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
-                    title="Logout"
-                  >
-                    {sidebarOpen ? "Logout" : "⏻"}
-                  </button>
-                </div>
-              </div>
-            </aside>
-
-            {/* Main content area */}
-            <main className="flex-1 overflow-y-auto bg-zinc-50 p-6 dark:bg-zinc-900">
+            <main className="flex-1 overflow-y-auto bg-zinc-50 p-6 pb-20 md:pb-6 dark:bg-zinc-900">
               {children}
             </main>
           </div>
-        </AuthProvider>
+        </PodsProvider>
       </body>
     </html>
   );

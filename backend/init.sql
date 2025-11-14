@@ -10,36 +10,30 @@ CREATE TABLE IF NOT EXISTS cookie_user (
 	birthday date
 );
 
--- price_range table
-CREATE TABLE IF NOT EXISTS price_range (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	name varchar(100),
-	min_price INTEGER NOT NULL check (min_price >= 0),
-	max_price INTEGER NOT NULL check (max_price >= 0)
-);
-
 -- item table
 CREATE TABLE IF NOT EXISTS item (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	user_id INTEGER NOT NULL,
-	price_range_id INTEGER,
+	upper_price INTEGER NOT NULL check (upper_price >= 0),
+	lower_price INTEGER NOT NULL check (lower_price >= 0),
 	link TEXT,
 	description TEXT,
 	purchased INTEGER NOT NULL DEFAULT 0,
 	-- Either link or description must be non-empty
 	CHECK ( (link IS NOT NULL AND length(trim(link)) > 0) OR (description IS NOT NULL AND length(trim(description)) > 0) ),
-	FOREIGN KEY (user_id) REFERENCES cookie_user(id) ON DELETE CASCADE,
-	FOREIGN KEY (price_range_id) REFERENCES price_range(id) ON DELETE SET NULL
+	FOREIGN KEY (user_id) REFERENCES cookie_user(id) ON DELETE CASCADE
 );
 
 -- pod table
 CREATE TABLE IF NOT EXISTS pod (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	name TEXT NOT NULL
+	name TEXT NOT NULL,
+	owner_id INTEGER NOT NULL,
+	FOREIGN KEY (owner_id) REFERENCES cookie_user(id) ON DELETE CASCADE
 );
 
 -- pod_members table (many-to-many between cookie_user and pod)
-CREATE TABLE IF NOT EXISTS pod_members (
+CREATE TABLE IF NOT EXISTS pod_member (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	user_id INTEGER NOT NULL,
 	pod_id INTEGER NOT NULL,

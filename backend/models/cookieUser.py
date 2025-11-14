@@ -7,13 +7,6 @@ class CookieUserDTO(BaseModel):
     surname: str
     birthday: Optional[str] = None
     unhashed_password: str
-
-class CookieUserResponse(BaseModel):
-    id: int
-    username: str
-    first_name: str
-    surname: str
-    birthday: Optional[str] = None
     
 class CookieUser(BaseModel):
     id: int

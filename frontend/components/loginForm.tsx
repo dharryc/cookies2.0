@@ -104,6 +104,13 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           <p className="text-sm text-green-600">Signed in successfully.</p>
         )}
       </div>
+
+      <div className="mt-4 text-center text-xs text-zinc-600 dark:text-zinc-400">
+        Not registered?{" "}
+        <a href="/register" className="text-blue-600 hover:underline dark:text-blue-400">
+          Create an account!
+        </a>
+      </div>
     </form>
   );
 }

@@ -9,4 +9,3 @@ class Pod(BaseModel):
 class PodCreateDTO(BaseModel):
     name: str
     members_to_add_by_id: Optional[list[int]] = None
-    members_to_add_by_username: Optional[list[str]] = None
