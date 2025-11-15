@@ -31,6 +31,11 @@ export default function ManagePodsPage() {
     const [managingMembers, setManagingMembers] = useState(false);
     const [deletingPod, setDeletingPod] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [joinCodeInput, setJoinCodeInput] = useState("");
+    const [joinMsg, setJoinMsg] = useState<string | null>(null);
+    const [joining, setJoining] = useState(false);
+    const [generatedInvite, setGeneratedInvite] = useState<{code: string, link: string, expires_at: number} | null>(null);
+    const [generatingInvite, setGeneratingInvite] = useState(false);
 
     useEffect(() => {
         fetchOwnedPods();
@@ -148,6 +153,68 @@ export default function ManagePodsPage() {
         }
     };
 
+    const handleGenerateInvite = async (podId: number, expiresMinutes: number = 30) => {
+        setGeneratingInvite(true);
+        setError(null);
+        try {
+            const res = await fetch(`${apiUrl}/pod/invite/${podId}?expires_minutes=${expiresMinutes}`, {
+                method: "POST",
+                credentials: "include",
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data?.detail || res.statusText || "Failed to generate invite");
+            }
+            const data = await res.json();
+            setGeneratedInvite(data);
+            setJoinMsg("Invite code generated! Share the code below.");
+        } catch (err: any) {
+            console.error("Failed to generate invite", err);
+            setError(err?.message || String(err));
+        } finally {
+            setGeneratingInvite(false);
+        }
+    };
+
+    const handleCopyInviteCode = async (code: string) => {
+        try {
+            await navigator.clipboard.writeText(code);
+            setJoinMsg("Invite code copied to clipboard");
+        } catch (err: any) {
+            console.error("Failed to copy invite code", err);
+            setJoinMsg("Failed to copy invite code");
+        }
+    };
+
+    const handleJoinByCode = async () => {
+        if (!joinCodeInput.trim()) {
+            setJoinMsg("Enter an invite code to join");
+            return;
+        }
+
+        setJoining(true);
+        setJoinMsg(null);
+        try {
+            const res = await fetch(`${apiUrl}/pod/join/${joinCodeInput.trim()}`, {
+                method: "POST",
+                credentials: "include",
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data?.detail || data?.msg || res.statusText || "Failed to join pod");
+            }
+            setJoinMsg(data?.msg || "Joined pod successfully");
+            setJoinCodeInput("");
+            await fetchOwnedPods();
+            refetch();
+        } catch (err: any) {
+            console.error("Join by code failed", err);
+            setJoinMsg(err?.message || String(err));
+        } finally {
+            setJoining(false);
+        }
+    };
+
     const handleRemoveMembers = async () => {
         if (!selectedPod || memberIdsToRemove.length === 0) {
             setError("Please select members to remove");
@@ -224,6 +291,30 @@ export default function ManagePodsPage() {
                     </button>
                 </div>
 
+                {/* Join by Invite Code */}
+                <div className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Join a Pod</h2>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={joinCodeInput}
+                            onChange={(e) => setJoinCodeInput(e.target.value)}
+                            placeholder="Enter invite code"
+                            className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg text-sm dark:bg-zinc-700 dark:text-zinc-100"
+                        />
+                        <button
+                            onClick={handleJoinByCode}
+                            disabled={joining}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                        >
+                            {joining ? "Joining..." : "Join"}
+                        </button>
+                    </div>
+                    {joinMsg && (
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-2">{joinMsg}</p>
+                    )}
+                </div>
+
                 {error && (
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
                         <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
@@ -277,6 +368,36 @@ export default function ManagePodsPage() {
                                     >
                                         Delete Pod
                                     </button>
+                                </div>
+
+                                {/* Generate Invite */}
+                                <div>
+                                    <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Invite Members</h3>
+                                    <button
+                                        onClick={() => handleGenerateInvite(selectedPod)}
+                                        disabled={generatingInvite}
+                                        className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                                    >
+                                        {generatingInvite ? "Generating..." : "Generate Invite Code"}
+                                    </button>
+                                    {generatedInvite && (
+                                        <div className="mt-3 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+                                            <div className="flex items-center justify-between">
+                                                <code className="text-sm font-mono text-purple-900 dark:text-purple-100">
+                                                    {generatedInvite.code}
+                                                </code>
+                                                <button
+                                                    onClick={() => handleCopyInviteCode(generatedInvite.code)}
+                                                    className="px-3 py-1 bg-purple-600 text-white rounded text-xs font-medium hover:bg-purple-700"
+                                                >
+                                                    Copy
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-purple-700 dark:text-purple-300 mt-2">
+                                                Expires: {new Date(generatedInvite.expires_at * 1000).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Add Members */}

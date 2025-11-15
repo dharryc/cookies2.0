@@ -275,7 +275,7 @@ export default function PodPage() {
                                             )}
                                         </div>
                                         <div className="pt-2 md:pt-3 border-t border-zinc-200 dark:border-zinc-700">
-                                            {item.purchased_by ? (
+                                            {item.purchased_by || item.purchased ? (
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="flex flex-col gap-0.5">
                                                         <div className="flex items-center gap-2 text-green-600 dark:text-green-500">
@@ -285,7 +285,7 @@ export default function PodPage() {
                                                             <span className="text-xs md:text-sm font-medium">Purchased</span>
                                                         </div>
                                                         <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-6 md:ml-7">
-                                                            by {podMembers.get(item.purchased_by) || "Unknown"}
+                                                            {item.purchased_by ? `by ${podMembers.get(item.purchased_by) || "Unknown"}` : "by someone in another pod"}
                                                         </span>
                                                     </div>
                                                     {item.purchased_by === currentUserId && (

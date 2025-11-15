@@ -35,7 +35,7 @@ export default function RootLayout({
   const pathname = usePathname();
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/register"];
+  const publicRoutes = ["/register", "/welcome"];
   const isPublicRoute = publicRoutes.includes(pathname);
 
   useEffect(() => {

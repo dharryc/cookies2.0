@@ -55,9 +55,13 @@ CREATE TABLE IF NOT EXISTS item_in_pod (
 	FOREIGN KEY (purchased_by) REFERENCES cookie_user(id) ON DELETE SET NULL
 );
 
-create table if not exists repeating_events(
-	id integer primary key autoincrement,
-	month_day varchar(5) not null,
-	repeats_frequency int,
-	foreign key (repeats_frequency) references frequency(id) on delete cascade
+CREATE TABLE IF NOT EXISTS pod_invite (
+    code TEXT PRIMARY KEY,
+    pod_id INTEGER NOT NULL,
+    created_by INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    used INTEGER DEFAULT 0,
+    FOREIGN KEY (pod_id) REFERENCES pod(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES cookie_user(id) ON DELETE CASCADE
 );

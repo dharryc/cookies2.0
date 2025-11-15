@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from fastapi.middleware.cors import CORSMiddleware
-import jwt, sqlite3
+import jwt, sqlite3, secrets, time
 from fastapi import Depends, FastAPI, HTTPException, Request, status, Response
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
@@ -673,9 +673,14 @@ async def mark_item_as_purchased(
         # Mark the item as purchased by the current user
         update_query = "UPDATE item_in_pod SET purchased_by = ? WHERE item_id = ? AND pod_id = ?"
         cur.execute(update_query, (current_user.id, item_id, pod_id))
-        con.commit()
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Item not found in the specified pod")
+        
+        # Also update the item table's purchased flag
+        update_item_query = "UPDATE item SET purchased = 1 WHERE id = ?"
+        cur.execute(update_item_query, (item_id,))
+        
+        con.commit()
         return {"msg": "Item marked as purchased successfully"}
     except HTTPException:
         raise
@@ -698,11 +703,103 @@ async def unmark_item_as_purchased(
         # Unmark the item as purchased
         update_query = "UPDATE item_in_pod SET purchased_by = NULL WHERE item_id = ? AND pod_id = ?"
         cur.execute(update_query, (item_id, pod_id))
-        con.commit()
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Item not found in the specified pod")
+        
+        # Also update the item table's purchased flag
+        # Only set to 0 if this item is not purchased in ANY other pod
+        check_other_pods = "SELECT COUNT(*) as count FROM item_in_pod WHERE item_id = ? AND purchased_by IS NOT NULL"
+        cur.execute(check_other_pods, (item_id,))
+        other_purchases = cur.fetchone()["count"]
+        
+        if other_purchases == 0:
+            update_item_query = "UPDATE item SET purchased = 0 WHERE id = ?"
+            cur.execute(update_item_query, (item_id,))
+        
+        con.commit()
         return {"msg": "Item unmarked as purchased successfully"}
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to unmark item as purchased: {str(e)}")
+
+
+@app.post("/pod/invite/{pod_id}")
+async def create_pod_invite(
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+    pod_id: int,
+    expires_minutes: int = 30,
+):
+    try:
+        # require the user to be a member (or owner) to create an invite
+        member_check_query = "SELECT * FROM pod_member WHERE pod_id = ? AND user_id = ?"
+        cur.execute(member_check_query, (pod_id, current_user.id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Not a member of this pod")
+
+        code = secrets.token_urlsafe(8)  # short, URL-safe code
+        now = int(time.time())
+        expires_at = now + int(expires_minutes) * 60
+
+        insert_query = """
+        INSERT INTO pod_invite (code, pod_id, created_by, created_at, expires_at, used)
+        VALUES (?, ?, ?, ?, ?, 0)
+        """
+        cur.execute(insert_query, (code, pod_id, current_user.id, now, expires_at))
+        con.commit()
+
+        return {
+            "code": code,
+            "link": f"/pod/join/{code}",
+            "expires_at": expires_at,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        con.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create invite: {str(e)}")
+
+
+@app.post("/pod/join/{code}")
+async def join_pod_by_code(
+    code: str,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        lookup = "SELECT pod_id, expires_at, used FROM pod_invite WHERE code = ?"
+        cur.execute(lookup, (code,))
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Invalid invite code")
+
+        pod_id = row["pod_id"]
+        expires_at = row["expires_at"]
+        used = row["used"]
+        now = int(time.time())
+
+        if expires_at < now:
+            raise HTTPException(status_code=400, detail="Invite code expired")
+        # optional: treat as one-time use
+        if used:
+            raise HTTPException(status_code=400, detail="Invite code already used")
+
+        # check membership
+        member_check_query = "SELECT * FROM pod_member WHERE pod_id = ? AND user_id = ?"
+        cur.execute(member_check_query, (pod_id, current_user.id))
+        if cur.fetchone() is not None:
+            return {"msg": "User is already a member of the pod"}
+
+        # add member
+        add_user_query = "INSERT INTO pod_member (pod_id, user_id) VALUES (?, ?)"
+        cur.execute(add_user_query, (pod_id, current_user.id))
+
+        # mark used (optional)
+        cur.execute("UPDATE pod_invite SET used = 1 WHERE code = ?", (code,))
+
+        con.commit()
+        return {"msg": "User added to pod via invite", "pod_id": pod_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        con.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to join pod via invite: {str(e)}")

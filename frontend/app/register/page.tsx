@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import UserCreationdto from "@/models/userCreationdto";
 import apiUrl from "@/components/apiUrl";
 
@@ -15,6 +16,7 @@ type Errors = {
 };
 
 export default function RegisterForm() {
+  const router = useRouter();
   const [username, setUsername] = useState("");
   const [first_name, setFirstName] = useState("");
   const [surname, setSurname] = useState("");
@@ -65,14 +67,34 @@ export default function RegisterForm() {
       if (!response.ok) {
         throw new Error(data.message || "Failed to register");
       }
-      setSuccess("Account created! You can now log in.");
-      // reset form lightly
-      setUsername("");
-      setFirstName("");
-      setSurname("");
-      setBirthday("");
-      setPassword("");
-      setPasswordValidation("");
+      
+      // Automatically log in the user
+      const loginResponse = await fetch(`${apiUrl}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          username: username,
+          password: unhashed_password,
+        }),
+      });
+      
+      if (!loginResponse.ok) {
+        // Registration succeeded but login failed - still redirect but show message
+        setSuccess("Account created! Please log in.");
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1500);
+        return;
+      }
+      
+      setSuccess("Account created! Redirecting to welcome page...");
+      // Redirect to welcome page after short delay with full page reload
+      setTimeout(() => {
+        window.location.href = "/welcome";
+      }, 1500);
     } catch (err) {
       setErrors({ ...e, username: "Failed to register — try again" });
     } finally {
