@@ -2,8 +2,9 @@ from pydantic import BaseModel, model_validator
 from typing import Optional
 
 class ItemDTO(BaseModel):
-    userName: str
-    price_range_id: Optional[int] = None
+    item_name: str
+    upper_price: Optional[int] = None
+    lower_price: Optional[int] = None
     link: Optional[str] = None
     description: Optional[str] = None
 

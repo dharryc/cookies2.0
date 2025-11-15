@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS cookie_user (
 -- item table
 CREATE TABLE IF NOT EXISTS item (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	item_name TEXT NOT NULL,
 	user_id INTEGER NOT NULL,
 	upper_price INTEGER NOT NULL check (upper_price >= 0),
 	lower_price INTEGER NOT NULL check (lower_price >= 0),

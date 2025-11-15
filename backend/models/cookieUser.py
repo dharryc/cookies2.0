@@ -19,3 +19,10 @@ class CookieUser(BaseModel):
 class CookieUserLoginDTO(BaseModel):
     username: str
     password: str
+    
+class CookieUserProfileDTO(BaseModel):
+    id: int
+    username: str
+    first_name: str
+    surname: str
+    birthday: Optional[str] = None

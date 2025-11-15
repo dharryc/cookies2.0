@@ -5,12 +5,9 @@ import jwt, sqlite3
 from fastapi import Depends, FastAPI, HTTPException, Request, status, Response
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
-from models.cookieUser import CookieUser, CookieUserDTO, CookieUserLoginDTO
-from models.item import Item, ItemDTO
-from models.itemInPod import ItemInPod, ItemInPodDTO
-from models.pod import Pod, PodCreateDTO
-from models.podMember import PodMember, PodMemberDTO
-from models.priceRange import PriceRange, PriceRangeDTO
+from models.cookieUser import CookieUser, CookieUserDTO, CookieUserLoginDTO, CookieUserProfileDTO
+from models.item import ItemDTO
+from models.pod import PodCreateDTO
 
 
 # to get a string like this run:
@@ -165,7 +162,7 @@ async def create_user_test(user: CookieUserDTO):
         query = "INSERT INTO cookie_user (username, first_name, surname, birthday, hashed_password) VALUES (?, ?, ?, ?, ?)"
         cur.execute(query, (user.username, user.first_name, user.surname, user.birthday, hashed_password))
         con.commit()
-        return {"msg": True}
+        return {"msg": True, "birthday": user.birthday}
     except Exception as e:
         return {"msg": "Error creating user"}
 
@@ -268,6 +265,326 @@ async def get_user_pods(
             podNames.append({"pod_id": pod_id, "pod_name": pod_name})
     return podNames
 
+@app.get("/allusers")
+async def get_all_users():
+    query = """
+    SELECT * FROM cookie_user
+    """
+    cur.execute(query)
+    users = cur.fetchall()
+    return users
+
+@app.get("/items")
+async def get_all_items(
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    query = """
+    SELECT id, item_name, user_id, upper_price, lower_price, link, description FROM item WHERE user_id = ?
+    """
+    cur.execute(query, (current_user.id,))
+    items = cur.fetchall()
+    
+    # For each item, get the pods it belongs to
+    result = []
+    for item in items:
+        item_dict = dict(item)
+        
+        # Get pods this item is in
+        pod_query = """
+        SELECT p.id, p.name
+        FROM pod p
+        JOIN item_in_pod iip ON p.id = iip.pod_id
+        WHERE iip.item_id = ?
+        """
+        cur.execute(pod_query, (item["id"],))
+        pod_rows = cur.fetchall()
+        
+        item_dict["pods"] = [{"id": row["id"], "name": row["name"]} for row in pod_rows]
+        result.append(item_dict)
+    
+    return result
+
+@app.post("/item")
+async def create_item(
+    itemData: ItemDTO,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        query = "INSERT INTO item (item_name, user_id, upper_price, lower_price, link, description) VALUES (?, ?, ?, ?, ?, ?)"
+        cur.execute(query, (itemData.item_name, current_user.id, itemData.upper_price, itemData.lower_price, itemData.link, itemData.description))
+        con.commit()
+        return {"msg": "Item created successfully", "item_id": cur.lastrowid}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create item: {str(e)}")
+    
+@app.put("/item")
+async def update_item(
+    itemData: ItemDTO,
+    item_id: int,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        query = "UPDATE item SET upper_price = ?, lower_price = ?, link = ?, description = ? WHERE id = ? AND user_id = ?"
+        cur.execute(query, (itemData.upper_price, itemData.lower_price, itemData.link, itemData.description, item_id, current_user.id))
+        con.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Item not found or not owned by user")
+        return {"msg": "Item updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update item: {str(e)}")
+    
+@app.delete("/item")
+async def delete_item(
+    item_id: int,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        query = "DELETE FROM item WHERE id = ? AND user_id = ?"
+        cur.execute(query, (item_id, current_user.id))
+        con.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Item not found or not owned by user")
+        return {"msg": "Item deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete item: {str(e)}")
+    
+@app.get("/profile")
+async def get_user_profile(
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    return CookieUserProfileDTO(
+        id=current_user.id,
+        username=current_user.username,
+        first_name=current_user.first_name,
+        surname=current_user.surname,
+        birthday=current_user.birthday
+    )
+    
+    
+@app.delete("/user")
+async def delete_user(
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+    response: Response,
+):
+    try:
+        query = "DELETE FROM cookie_user WHERE id = ?"
+        cur.execute(query, (current_user.id,))
+        con.commit()
+        
+        if cur.rowcount == 0:
+            response.delete_cookie(key="access_token")
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"msg": "User deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")
+    
+@app.post("/item/pod")
+async def add_item_to_pod(
+    item_id: int,
+    pod_id: int,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        # Check if the item belongs to the current user
+        item_check_query = "SELECT * FROM item WHERE id = ? AND user_id = ?"
+        cur.execute(item_check_query, (item_id, current_user.id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Item does not belong to the current user")
+
+        # Check if the user is a member of the pod
+        member_check_query = "SELECT * FROM pod_member WHERE pod_id = ? AND user_id = ?"
+        cur.execute(member_check_query, (pod_id, current_user.id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Not a member of this pod")
+
+        # Add the item to the pod
+        insert_query = "INSERT INTO item_in_pod (item_id, pod_id, purchased_by) VALUES (?, ?, ?)"
+        cur.execute(insert_query, (item_id, pod_id, None))
+        con.commit()
+        return {"msg": "Item added to pod successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add item to pod: {str(e)}")
+    
+    
+@app.delete("/item/pod")
+async def remove_item_from_pod(
+    item_id: int,
+    pod_id: int,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        # Check if the item belongs to the current user
+        item_check_query = "SELECT * FROM item WHERE id = ? AND user_id = ?"
+        cur.execute(item_check_query, (item_id, current_user.id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Item does not belong to the current user")
+
+        # Check if the user is a member of the pod
+        member_check_query = "SELECT * FROM pod_member WHERE pod_id = ? AND user_id = ?"
+        cur.execute(member_check_query, (pod_id, current_user.id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Not a member of this pod")
+
+        # Remove the item from the pod
+        delete_query = "DELETE FROM item_in_pod WHERE item_id = ? AND pod_id = ?"
+        cur.execute(delete_query, (item_id, pod_id))
+        con.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Item not found in the specified pod")
+        return {"msg": "Item removed from pod successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to remove item from pod: {str(e)}")
+
+@app.delete("/pod")
+async def delete_pod(
+    pod_id: int,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        # Check if the current user is the owner of the pod
+        owner_check_query = "SELECT * FROM pod WHERE id = ? AND owner_id = ?"
+        cur.execute(owner_check_query, (pod_id, current_user.id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Only the pod owner can delete the pod")
+
+        # Delete the pod
+        delete_query = "DELETE FROM pod WHERE id = ?"
+        cur.execute(delete_query, (pod_id,))
+        con.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Pod not found")
+        return {"msg": "Pod deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete pod: {str(e)}")
+
+@app.get("/pod/ownership")
+async def check_pod_ownership(
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        owner_check_query = "SELECT * FROM pod WHERE owner_id = :owner_id"
+        cur.execute(owner_check_query, {"owner_id": current_user.id})
+        rows = cur.fetchall()
+        return {"owned_pods": [dict(row) for row in rows]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to check pod ownership: {str(e)}")
+    
+@app.post("/pod/members")
+async def add_member_to_pod(
+    pod_id: int,
+    member_ids: list[int],
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        # Check if the current user is the owner of the pod
+        owner_check_query = "SELECT * FROM pod WHERE id = ? AND owner_id = ?"
+        cur.execute(owner_check_query, (pod_id, current_user.id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Only the pod owner can add members")
+
+        # Check if the member to add exists
+        user_check_query = "SELECT * FROM cookie_user WHERE id = ?"
+        for member_id in member_ids:
+            cur.execute(user_check_query, (member_id,))
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail=f"User to add with ID {member_id} not found")
+
+        # Add the member to the pod
+        insert_query = "INSERT INTO pod_member (pod_id, user_id) VALUES (?, ?)"
+        for member_id in member_ids:
+            cur.execute(insert_query, (pod_id, member_id))
+        con.commit()
+        return {"msg": "Member added to pod successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add member to pod: {str(e)}")
+    
+@app.delete("/pod/members")
+async def remove_member_from_pod(
+    pod_id: int,
+    member_ids: list[int],
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        # Check if the current user is the owner of the pod
+        owner_check_query = "SELECT * FROM pod WHERE id = ? AND owner_id = ?"
+        cur.execute(owner_check_query, (pod_id, current_user.id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Only the pod owner can remove members")
+
+        # Remove the member from the pod
+        delete_query = "DELETE FROM pod_member WHERE pod_id = ? AND user_id = ?"
+        for member_id in member_ids:
+            cur.execute(delete_query, (pod_id, member_id))
+        con.commit()
+        cleanup_items_query = "DELETE FROM item_in_pod WHERE pod_id = ? AND item_id IN (SELECT id FROM item WHERE user_id = ?)"
+        for member_id in member_ids:
+            cur.execute(cleanup_items_query, (pod_id, member_id))
+        con.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Member not found in the specified pod")
+        return {"msg": "Member removed from pod successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to remove member from pod: {str(e)}")
+    
+@app.get("/pod/info/{pod_id}")
+async def get_pod_info(
+    pod_id: int,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        # Check if the user is a member of the pod
+        member_check_query = "SELECT * FROM pod_member WHERE pod_id = ? AND user_id = ?"
+        cur.execute(member_check_query, (pod_id, current_user.id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Not a member of this pod")
+
+        # Get pod info
+        pod_info_query = "SELECT * FROM pod WHERE id = ?"
+        cur.execute(pod_info_query, (pod_id,))
+        pod_row = cur.fetchone()
+        if pod_row is None:
+            raise HTTPException(status_code=404, detail="Pod not found")
+        
+        # Get pod members with their names
+        get_pod_users_query = """
+        SELECT cu.id, cu.first_name, cu.surname 
+        FROM cookie_user cu
+        JOIN pod_member pm ON cu.id = pm.user_id
+        WHERE pm.pod_id = ?
+        """
+        cur.execute(get_pod_users_query, (pod_id,))
+        user_rows = cur.fetchall()
+        
+        members = [{
+            "id": row["id"],
+            "name": f"{row['first_name']}|{row['surname']}"
+        } for row in user_rows]
+        
+        pod_row = dict(pod_row)
+        pod_row["members"] = members
+
+        return dict(pod_row)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get pod info: {str(e)}")
+    
 @app.get("/pod/{pod_id}")
 async def get_pod_details(
     pod_id: int,
@@ -291,11 +608,11 @@ async def get_pod_details(
     # Note: JSON object keys must be strings. We will serialize the tuple
     # to a string "first|surname" for the HTTP response while keeping
     # tuple semantics internally.
-    items_by_member: dict[tuple[str, str], list] = {}
+    items_by_member: dict[tuple[str, str], dict] = {}
 
     for member_id in member_ids:
         # Get user info
-        user_query = "SELECT first_name, surname FROM cookie_user WHERE id = ?"
+        user_query = "SELECT first_name, surname, birthday FROM cookie_user WHERE id = ?"
         cur.execute(user_query, (member_id,))
         user_row = cur.fetchone()
 
@@ -304,15 +621,15 @@ async def get_pod_details(
 
         first_name = user_row["first_name"]
         surname = user_row["surname"]
+        birthday = user_row["birthday"]
         key = (first_name, surname)
 
         # Get all items for this user that are in this pod
         items_query = """
-        SELECT i.id, i.link, i.description, i.purchased, i.price_range_id, 
-               iip.purchased_by, pr.name as price_range_name, pr.min_price, pr.max_price
+        SELECT i.id, i.item_name, i.link, i.description, i.purchased, 
+               i.upper_price, i.lower_price, iip.purchased_by
         FROM item i
         JOIN item_in_pod iip ON i.id = iip.item_id
-        LEFT JOIN price_range pr ON i.price_range_id = pr.id
         WHERE iip.pod_id = ? AND i.user_id = ?
         """
         cur.execute(items_query, (pod_id, member_id))
@@ -322,29 +639,70 @@ async def get_pod_details(
         for item_row in item_rows:
             items.append({
                 "id": item_row["id"],
+                "item_name": item_row["item_name"],
                 "link": item_row["link"],
                 "description": item_row["description"],
                 "purchased": bool(item_row["purchased"]),
                 "purchased_by": item_row["purchased_by"],
-                "price_range": {
-                    "id": item_row["price_range_id"],
-                    "name": item_row["price_range_name"],
-                    "min_price": item_row["min_price"],
-                    "max_price": item_row["max_price"]
-                } if item_row["price_range_id"] else None
+                "upper_price": item_row["upper_price"],
+                "lower_price": item_row["lower_price"]
             })
 
-        items_by_member[key] = items
+        items_by_member[key] = {
+            "birthday": birthday,
+            "items": items
+        }
 
     # Serialize tuple keys to a JSON-friendly string format "First|Last"
-    result: dict[str, list] = {f"{k[0]}|{k[1]}": v for k, v in items_by_member.items()}
+    result: dict[str, dict] = {f"{k[0]}|{k[1]}": v for k, v in items_by_member.items()}
     return result
 
-@app.get("/allusers")
-async def get_all_users():
-    query = """
-    SELECT * FROM cookie_user
-    """
-    cur.execute(query)
-    users = cur.fetchall()
-    return users
+@app.post("/item/purchased")
+async def mark_item_as_purchased(
+    item_id: int,
+    pod_id: int,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        # Check if the user is a member of the pod
+        member_check_query = "SELECT * FROM pod_member WHERE pod_id = ? AND user_id = ?"
+        cur.execute(member_check_query, (pod_id, current_user.id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Not a member of this pod")
+
+        # Mark the item as purchased by the current user
+        update_query = "UPDATE item_in_pod SET purchased_by = ? WHERE item_id = ? AND pod_id = ?"
+        cur.execute(update_query, (current_user.id, item_id, pod_id))
+        con.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Item not found in the specified pod")
+        return {"msg": "Item marked as purchased successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to mark item as purchased: {str(e)}")
+    
+@app.delete("/item/purchased")
+async def unmark_item_as_purchased(
+    item_id: int,
+    pod_id: int,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        # Check if the user is a member of the pod
+        member_check_query = "SELECT * FROM pod_member WHERE pod_id = ? AND user_id = ?"
+        cur.execute(member_check_query, (pod_id, current_user.id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Not a member of this pod")
+
+        # Unmark the item as purchased
+        update_query = "UPDATE item_in_pod SET purchased_by = NULL WHERE item_id = ? AND pod_id = ?"
+        cur.execute(update_query, (item_id, pod_id))
+        con.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Item not found in the specified pod")
+        return {"msg": "Item unmarked as purchased successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to unmark item as purchased: {str(e)}")
