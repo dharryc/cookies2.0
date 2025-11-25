@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS cookie_user (
 	first_name varchar(100) NOT NULL,
 	surname varchar(100) NOT NULL,
 	hashed_password text NOT NULL,
+	is_admin INTEGER NOT NULL DEFAULT 0,
 	birthday date
 );
 
@@ -65,3 +66,5 @@ CREATE TABLE IF NOT EXISTS pod_invite (
     FOREIGN KEY (pod_id) REFERENCES pod(id) ON DELETE CASCADE,
     FOREIGN KEY (created_by) REFERENCES cookie_user(id) ON DELETE CASCADE
 );
+
+-- ALTER TABLE cookie_user ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0;

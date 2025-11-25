@@ -41,24 +41,6 @@ async def get_token_from_request(request: Request) -> str:
 
 
 password_hash = PasswordHash.recommended()
-
-app = FastAPI()
-
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 def verify_password(plain_password, hashed_password):
     return password_hash.verify(plain_password, hashed_password)
 
@@ -122,12 +104,31 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+app = FastAPI()
+
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 
 @app.post("/login")
 async def login_for_access_token(
     userData: CookieUserLoginDTO,
     response: Response,
 ):
+    is_admin = False
     user = authenticate_user(userData.username, userData.password)
     if not user:
         return False
@@ -136,6 +137,7 @@ async def login_for_access_token(
     row = cur.fetchone()
     userData = CookieUser(**dict(row))
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    
     access_token = create_access_token(
         data={"sub": user.username, "id": user.id}, expires_delta=access_token_expires
     )
@@ -266,7 +268,10 @@ async def get_user_pods(
     return podNames
 
 @app.get("/allusers")
-async def get_all_users():
+async def get_all_users(token : Annotated[str, Depends(get_token_from_request)]):
+    if(not token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
     query = """
     SELECT * FROM cookie_user
     """
@@ -324,8 +329,8 @@ async def update_item(
     current_user: Annotated[CookieUser, Depends(get_current_active_user)],
 ):
     try:
-        query = "UPDATE item SET upper_price = ?, lower_price = ?, link = ?, description = ? WHERE id = ? AND user_id = ?"
-        cur.execute(query, (itemData.upper_price, itemData.lower_price, itemData.link, itemData.description, item_id, current_user.id))
+        query = "UPDATE item SET item_name = ?, upper_price = ?, lower_price = ?, link = ?, description = ? WHERE id = ? AND user_id = ?"
+        cur.execute(query, (itemData.item_name, itemData.upper_price, itemData.lower_price, itemData.link, itemData.description, item_id, current_user.id))
         con.commit()
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Item not found or not owned by user")
