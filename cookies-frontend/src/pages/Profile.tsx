@@ -1,9 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import apiUrl from "../components/apiUrl";
+import UpdateUser from "../components/userUpdate.tsx";
 
 type UserProfile = {
     id: number;
+    username: string;
+    first_name: string;
+    surname: string;
+    birthday: string;
+    is_admin: boolean;
+};
+
+type UpdateProfileData = {
     username: string;
     first_name: string;
     surname: string;
@@ -19,6 +28,8 @@ export default function ProfilePage() {
     const [deleteStep, setDeleteStep] = useState(0);
     const [usernameConfirm, setUsernameConfirm] = useState("");
     const [deleting, setDeleting] = useState(false);
+    const [editing, setEditing] = useState(false);
+    const [updateData, setUpdateData] = useState<UpdateProfileData>();
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -33,6 +44,12 @@ export default function ProfilePage() {
                 }
                 const data = await res.json();
                 setProfile(data);
+                setUpdateData({
+                    username: data.username,
+                    first_name: data.first_name,
+                    surname: data.surname,
+                    birthday: data.birthday,
+                });
                 setError(null);
             } catch (err: any) {
                 setError(err?.message || String(err));
@@ -54,7 +71,7 @@ export default function ProfilePage() {
 
     const handleDeleteAccount = async () => {
         if (!profile) return;
-        
+
         setDeleting(true);
         try {
             const res = await fetch(`${apiUrl}/user`, {
@@ -81,63 +98,173 @@ export default function ProfilePage() {
 
     return (
         <div className="mx-auto max-w-3xl p-8">
-            <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100 mb-8">
-                Your Profile
-            </h1>
-            <div className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <label className="text-sm font-medium text-blue-700 dark:text-blue-400">Your User ID</label>
-                            <p className="text-lg font-mono text-zinc-900 dark:text-zinc-100">{profile.id}</p>
-                            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">Share this ID to join a pod</p>
-                        </div>
-                        <button
-                            onClick={handleCopyId}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
-                        >
-                            {copied ? (
-                                <>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                                        <path fillRule="evenodd" d="M19.916 4.626a.75.75 0 0 1 .208 1.04l-9 13.5a.75.75 0 0 1-1.154.114l-6-6a.75.75 0 0 1 1.06-1.06l5.353 5.353 8.493-12.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" />
-                                    </svg>
-                                    Copied!
-                                </>
-                            ) : (
-                                <>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                                        <path d="M7.5 3.375c0-1.036.84-1.875 1.875-1.875h.375a3.75 3.75 0 0 1 3.75 3.75v1.875C13.5 8.161 14.34 9 15.375 9h1.875A3.75 3.75 0 0 1 21 12.75v3.375C21 17.16 20.16 18 19.125 18h-9.75A1.875 1.875 0 0 1 7.5 16.125V3.375Z" />
-                                        <path d="M15 5.25a5.23 5.23 0 0 0-1.279-3.434 9.768 9.768 0 0 1 6.963 6.963A5.23 5.23 0 0 0 17.25 7.5h-1.875A.375.375 0 0 1 15 7.125V5.25ZM4.875 6H6v10.125A3.375 3.375 0 0 0 9.375 19.5H16.5v1.125c0 1.035-.84 1.875-1.875 1.875h-9.75A1.875 1.875 0 0 1 3 20.625V7.875C3 6.839 3.84 6 4.875 6Z" />
-                                    </svg>
-                                    Copy ID
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Username</label>
-                    <p className="text-lg text-zinc-900 dark:text-zinc-100">{profile.username}</p>
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">First Name</label>
-                    <p className="text-lg text-zinc-900 dark:text-zinc-100">{capitalize(profile.first_name)}</p>
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Surname</label>
-                    <p className="text-lg text-zinc-900 dark:text-zinc-100">{capitalize(profile.surname)}</p>
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Birthday</label>
-                    <p className="text-lg text-zinc-900 dark:text-zinc-100">{profile.birthday}</p>
-                </div>
-            </div>
+            {
+                !editing ? (
+                    <div>
 
+                        <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100 mb-8">
+                            Your Profile
+                        </h1>
+                        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 space-y-4">
+                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <label className="text-sm font-medium text-blue-700 dark:text-blue-400">Your User ID</label>
+                                        <p className="text-lg font-mono text-zinc-900 dark:text-zinc-100">{profile.id}</p>
+                                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">Share this ID to join a pod</p>
+                                    </div>
+                                    <button
+                                        onClick={handleCopyId}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                    >
+                                        {copied ? (
+                                            <>
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                                    <path fillRule="evenodd" d="M19.916 4.626a.75.75 0 0 1 .208 1.04l-9 13.5a.75.75 0 0 1-1.154.114l-6-6a.75.75 0 0 1 1.06-1.06l5.353 5.353 8.493-12.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" />
+                                                </svg>
+                                                Copied!
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                                    <path d="M7.5 3.375c0-1.036.84-1.875 1.875-1.875h.375a3.75 3.75 0 0 1 3.75 3.75v1.875C13.5 8.161 14.34 9 15.375 9h1.875A3.75 3.75 0 0 1 21 12.75v3.375C21 17.16 20.16 18 19.125 18h-9.75A1.875 1.875 0 0 1 7.5 16.125V3.375Z" />
+                                                    <path d="M15 5.25a5.23 5.23 0 0 0-1.279-3.434 9.768 9.768 0 0 1 6.963 6.963A5.23 5.23 0 0 0 17.25 7.5h-1.875A.375.375 0 0 1 15 7.125V5.25ZM4.875 6H6v10.125A3.375 3.375 0 0 0 9.375 19.5H16.5v1.125c0 1.035-.84 1.875-1.875 1.875h-9.75A1.875 1.875 0 0 1 3 20.625V7.875C3 6.839 3.84 6 4.875 6Z" />
+                                                </svg>
+                                                Copy ID
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Username</label>
+                                <p className="text-lg text-zinc-900 dark:text-zinc-100">{profile.username}</p>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">First Name</label>
+                                <p className="text-lg text-zinc-900 dark:text-zinc-100">{capitalize(profile.first_name)}</p>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Surname</label>
+                                <p className="text-lg text-zinc-900 dark:text-zinc-100">{capitalize(profile.surname)}</p>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Birthday</label>
+                                <p className="text-lg text-zinc-900 dark:text-zinc-100">{profile.birthday}</p>
+                            </div>
+                            <div>
+                                <button
+                                    onClick={() => setEditing(!editing)}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                >
+                                    {editing ? "Stop Editing" : "Edit Profile"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div>
+                        <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100 mb-8">
+                            Edit Profile
+                        </h1>
+                        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 space-y-4">
+                            <div>
+                                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Username</label>
+                                <input
+                                    type="text"
+                                    value={updateData!.username}
+                                    onChange={(e) => setUpdateData({ ...updateData!, username: e.target.value })}
+                                    className="mt-1 block w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">First Name</label>
+                                <input
+                                    type="text"
+                                    value={updateData!.first_name}
+                                    onChange={(e) => setUpdateData({ ...updateData!, first_name: e.target.value })}
+                                    className="mt-1 block w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Surname</label>
+                                <input
+                                    type="text"
+                                    value={updateData!.surname}
+                                    onChange={(e) => setUpdateData({ ...updateData!, surname: e.target.value })}
+                                    className="mt-1 block w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Birthday</label>
+                                <input
+                                    type="date"
+                                    value={updateData!.birthday}
+                                    onChange={(e) => setUpdateData({ ...updateData!, birthday: e.target.value })}
+                                    className="mt-1 block w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div
+                            className="flex">
+                                <button
+                                    onClick={() => setEditing(!editing)}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 mr-3"
+                                >
+                                    {editing ? "Stop Editing" : "Edit Profile"}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        UpdateUser(updateData!)
+                                            .then(() => {
+                                                setProfile({
+                                                    ...profile,
+                                                    username: updateData!.username,
+                                                    first_name: updateData!.first_name,
+                                                    surname: updateData!.surname,
+                                                    birthday: updateData!.birthday,
+                                                });
+                                                setEditing(false);
+                                            })
+                                            .catch((err) => {
+                                                setError(err?.message || String(err));
+                                            });
+                                    }
+                                    }
+                                    className="px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 transition-colors flex items-center gap-2"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+            {
+                profile.is_admin && (
+                    <div>
+                        <div>
+                            <button className="mt-6 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+                                onClick={() => navigate("/manage-pods")}
+                            >
+                                Update Database
+                            </button>
+                        </div>
+                        <div>
+                            <button className="mt-6 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+                                onClick={() => navigate("/admin")}
+                            >
+                                All users
+                            </button>
+                        </div>
+                    </div>
+                )
+            }
             <div className="mt-8 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">Danger Zone</h2>
                 <p className="text-sm text-red-700 dark:text-red-300 mb-4">
                     Deleting your account is permanent and cannot be undone.
                 </p>
+
 
                 {deleteStep === 0 && (
                     <button

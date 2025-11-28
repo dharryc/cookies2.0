@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import UserCreationdto from "../models/userCreationdto";
 import apiUrl from "../components/apiUrl";
 
@@ -14,7 +14,6 @@ type Errors = {
 };
 
 export default function RegisterForm() {
-  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [first_name, setFirstName] = useState("");
   const [surname, setSurname] = useState("");

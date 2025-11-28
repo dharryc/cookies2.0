@@ -5,7 +5,7 @@ import jwt, sqlite3, secrets, time
 from fastapi import Depends, FastAPI, HTTPException, Request, status, Response
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
-from models.cookieUser import CookieUser, CookieUserDTO, CookieUserLoginDTO, CookieUserProfileDTO
+from models.cookieUser import CookieUser, CookieUserDTO, CookieUserLoginDTO, CookieUserProfileDTO, CookieUserUpdateDTO
 from models.item import ItemDTO
 from models.pod import PodCreateDTO
 
@@ -128,7 +128,6 @@ async def login_for_access_token(
     userData: CookieUserLoginDTO,
     response: Response,
 ):
-    is_admin = False
     user = authenticate_user(userData.username, userData.password)
     if not user:
         return False
@@ -366,7 +365,8 @@ async def get_user_profile(
         username=current_user.username,
         first_name=current_user.first_name,
         surname=current_user.surname,
-        birthday=current_user.birthday
+        birthday=current_user.birthday,
+        is_admin=(current_user.is_admin == 1)
     )
     
     
@@ -808,3 +808,62 @@ async def join_pod_by_code(
     except Exception as e:
         con.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to join pod via invite: {str(e)}")
+    
+@app.get("/db/migrate")
+async def run_db_migration(current_user: Annotated[CookieUser, Depends(get_current_active_user)]):
+    from alterDb import db_migration
+    if(current_user.is_admin != 1):
+        raise HTTPException(status_code=403, detail="Admin privileges required for migration")
+    try:
+        db_migration(cur)
+        con.commit()
+        return {"msg": "Database migration completed"}
+    except Exception as e:
+        con.rollback()
+        raise HTTPException(status_code=500, detail=f"Database migration failed: {str(e)}")
+    
+
+@app.put("/user")
+async def update_user_profile(
+    userData: CookieUserUpdateDTO,
+    response: Response,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+):
+    try:
+        query = "UPDATE cookie_user SET username = ?, first_name = ?, surname = ?, birthday = ? WHERE id = ?"
+        if userData.username == "":
+             userData.username = current_user.username
+        if userData.first_name == "":
+             userData.first_name = current_user.first_name
+        if userData.surname == "":
+             userData.surname = current_user.surname
+        if userData.birthday == "":
+             userData.birthday = current_user.birthday
+        cur.execute(query, (userData.username, userData.first_name , userData.surname, userData.birthday, current_user.id))
+        con.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        else:
+             # Refresh token with updated username
+            query = "SELECT * FROM cookie_user WHERE id = ?"
+            cur.execute(query, (current_user.id,))
+            row = cur.fetchone()
+            UpdatedUser = CookieUser(**dict(row))
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+            access_token = create_access_token(
+                data={"sub": UpdatedUser.username, "id": UpdatedUser.id}, expires_delta=access_token_expires
+            )
+
+            response.set_cookie(
+                key="access_token",
+                value=access_token,
+                httponly=True,
+                samesite="lax",
+                # secure=True ### SET THIS IN PROD
+            )
+        return {"msg": "User profile updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update user profile: {str(e)}")

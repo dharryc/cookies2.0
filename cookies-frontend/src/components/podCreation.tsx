@@ -64,7 +64,6 @@ function CreatePodForm() {
                 body: JSON.stringify(dto),
             });
             if (!res.ok) {
-                const errText = await res.text();
                 setMessage(`Something went wrong creating the pod! Please check all member IDs are valid.\n (or ask Harry what's wrong)`);
             } else {
                 setMessage("Pod created successfully");

@@ -15,6 +15,7 @@ class CookieUser(BaseModel):
     surname: str
     birthday: Optional[str] = None
     hashed_password: str
+    is_admin: int
     
 class CookieUserLoginDTO(BaseModel):
     username: str
@@ -25,4 +26,11 @@ class CookieUserProfileDTO(BaseModel):
     username: str
     first_name: str
     surname: str
+    birthday: Optional[str] = None
+    is_admin: bool
+
+class CookieUserUpdateDTO(BaseModel):
+    username: Optional[str] = None
+    first_name: Optional[str] = None
+    surname: Optional[str] = None
     birthday: Optional[str] = None

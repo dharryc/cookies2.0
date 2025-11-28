@@ -342,14 +342,14 @@ export default function PodPage() {
                                                             <span className="text-xs md:text-sm font-medium">Purchased</span>
                                                         </div>
                                                         <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-6 md:ml-7">
-                                                            {item.purchased_by ? `by ${podMembers.get(item.purchased_by) || "Unknown"}` : "by someone in another pod"}
+                                                            {item.purchased_by ? `by ${ podMembers.get(item.purchased_by) || "Unknown"}` : "by someone in another pod"}
                                                         </span>
                                                     </div>
                                                     {item.purchased_by === currentUserId && (
                                                         <button 
                                                             onClick={() => handleTogglePurchased(item.id, true)}
                                                             disabled={markingPurchased === item.id}
-                                                            className="text-xs text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 disabled:opacity-50 shrink-0"
+                                                            className="text-xs bg-red-600 hover:bg-red-700 dark:bg-red-500 rounded md:px-2 md:py-1.5 dark:hover:bg-red-400 disabled:opacity-50 shrink-0 text-amber-50"
                                                         >
                                                             {markingPurchased === item.id ? "Updating..." : "Unmark"}
                                                         </button>

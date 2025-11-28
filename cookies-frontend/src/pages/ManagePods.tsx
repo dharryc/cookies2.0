@@ -16,7 +16,7 @@ type OwnedPod = {
 };
 
 export default function ManagePodsPage() {
-    const { pods, refetch } = usePods();
+    const { refetch } = usePods();
     const [ownedPods, setOwnedPods] = useState<OwnedPod[]>([]);
     const [selectedPod, setSelectedPod] = useState<number | null>(null);
     const [podInfo, setPodInfo] = useState<PodInfo | null>(null);

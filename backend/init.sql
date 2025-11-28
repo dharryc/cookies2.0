@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS cookie_user (
 	surname varchar(100) NOT NULL,
 	hashed_password text NOT NULL,
 	is_admin INTEGER NOT NULL DEFAULT 0,
-	birthday date
+	birthday date,
+	item_priority INTEGER NOT NULL DEFAULT 0,
+	CHECK (item_priority IN (0, 1, 2, 3))
 );
 
 -- item table
@@ -67,4 +69,13 @@ CREATE TABLE IF NOT EXISTS pod_invite (
     FOREIGN KEY (created_by) REFERENCES cookie_user(id) ON DELETE CASCADE
 );
 
--- ALTER TABLE cookie_user ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS password_reset_token (
+	token TEXT PRIMARY KEY,
+	user_id INTEGER NOT NULL,
+	created_at INTEGER NOT NULL,
+	expires_at INTEGER NOT NULL,
+	used INTEGER DEFAULT 0,
+	FOREIGN KEY (user_id) REFERENCES cookie_user(id) ON DELETE CASCADE
+);
+
+UPDATE cookie_user SET is_admin = 1 WHERE id = 1;
