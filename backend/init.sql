@@ -1,5 +1,5 @@
 PRAGMA foreign_keys = ON;
-
+drop table if exists pod_invite;
 -- cookie_user table
 CREATE TABLE IF NOT EXISTS cookie_user (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -8,9 +8,7 @@ CREATE TABLE IF NOT EXISTS cookie_user (
 	surname varchar(100) NOT NULL,
 	hashed_password text NOT NULL,
 	is_admin INTEGER NOT NULL DEFAULT 0,
-	birthday date,
-	item_priority INTEGER NOT NULL DEFAULT 0,
-	CHECK (item_priority IN (0, 1, 2, 3))
+	birthday date
 );
 
 -- item table
@@ -23,6 +21,8 @@ CREATE TABLE IF NOT EXISTS item (
 	link TEXT,
 	description TEXT,
 	purchased INTEGER NOT NULL DEFAULT 0,
+	item_priority INTEGER NOT NULL DEFAULT 1,
+	CHECK (item_priority IN (0, 1, 2))
 	-- Either link or description must be non-empty
 	CHECK ( (link IS NOT NULL AND length(trim(link)) > 0) OR (description IS NOT NULL AND length(trim(description)) > 0) ),
 	FOREIGN KEY (user_id) REFERENCES cookie_user(id) ON DELETE CASCADE

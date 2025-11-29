@@ -12,7 +12,40 @@ type ItemType = {
     lower_price: number;
     link: string;
     description: string;
+    item_priority: number;
     pods: Array<{ id: number; name: string }>;
+};
+
+type Priority = "high" | "medium" | "low";
+
+const getPriorityFromValue = (value: number): Priority => {
+    return value === 2 ? "high" : value === 1 ? "medium" : "low";
+};
+
+const getPriorityStyles = (priority: Priority) => {
+    switch (priority) {
+        case "high":
+            return { 
+                border: "border-green-300 dark:border-green-700",
+                bg: "bg-green-50/50 dark:bg-green-950/10",
+                badge: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+                label: "High"
+            };
+        case "medium":
+            return { 
+                border: "border-yellow-300 dark:border-yellow-500",
+                bg: "bg-yellow-50/50 dark:bg-yellow-950/10",
+                badge: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                label: "Medium"
+            };
+        case "low":
+            return { 
+                border: "border-red-300 dark:border-red-700",
+                bg: "bg-red-50/50 dark:bg-red-950/10",
+                badge: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                label: "Low"
+            };
+    }
 };
 
 function ItemCard({ item, onUpdate }: { item: ItemType; onUpdate: () => void }) {
@@ -23,6 +56,7 @@ function ItemCard({ item, onUpdate }: { item: ItemType; onUpdate: () => void }) 
     const [lowerPrice, setLowerPrice] = useState(item.lower_price);
     const [link, setLink] = useState(item.link || "");
     const [description, setDescription] = useState(item.description || "");
+    const [itemPriority, setItemPriority] = useState(item.item_priority);
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -30,6 +64,7 @@ function ItemCard({ item, onUpdate }: { item: ItemType; onUpdate: () => void }) 
     const [selectedPodIds, setSelectedPodIds] = useState<number[]>([]);
     const [savingPods, setSavingPods] = useState(false);
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+    const [showNoPriceConfirm, setShowNoPriceConfirm] = useState(false);
 
     const handleEdit = () => {
         setIsEditing(true);
@@ -43,6 +78,8 @@ function ItemCard({ item, onUpdate }: { item: ItemType; onUpdate: () => void }) 
         setLowerPrice(item.lower_price);
         setLink(item.link || "");
         setDescription(item.description || "");
+        setItemPriority(item.item_priority);
+        setShowNoPriceConfirm(false);
         setError(null);
     };
 
@@ -68,10 +105,16 @@ function ItemCard({ item, onUpdate }: { item: ItemType; onUpdate: () => void }) 
     };
 
     const handleConfirm = async () => {
-        const dto = new ItemDTO(itemName, upperPrice, lowerPrice, link || null, description || null);
+        const dto = new ItemDTO(itemName, upperPrice, lowerPrice, link || null, description || null, itemPriority);
         const validation = validateItemDTO(dto);
         if (!validation.valid) {
             setError(validation.error || "Validation failed");
+            return;
+        }
+
+        // Check if no price and ask for confirmation
+        if (dto.hasNoPrice() && !showNoPriceConfirm) {
+            setShowNoPriceConfirm(true);
             return;
         }
 
@@ -155,8 +198,11 @@ function ItemCard({ item, onUpdate }: { item: ItemType; onUpdate: () => void }) 
     };
 
     if (isEditing) {
+        const priority = getPriorityFromValue(itemPriority);
+        const priorityStyles = getPriorityStyles(priority);
+        
         return (
-            <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-800 flex flex-col gap-3 min-h-[280px] relative">
+            <div className={`rounded-lg border-2 p-6 shadow-sm flex flex-col gap-3 min-h-[280px] relative ${priorityStyles.border} ${priorityStyles.bg}`}>
                 <button
                     onClick={() => setShowDeleteConfirm(true)}
                     disabled={submitting}
@@ -219,7 +265,43 @@ function ItemCard({ item, onUpdate }: { item: ItemType; onUpdate: () => void }) 
                         rows={3}
                     />
                 </div>
+                <div className="flex flex-col gap-2">
+                    <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Priority</label>
+                    <select
+                        value={itemPriority}
+                        onChange={(e) => setItemPriority(Number(e.target.value))}
+                        className="border rounded px-3 py-2 text-sm dark:bg-zinc-700 dark:border-zinc-600 dark:text-zinc-100"
+                    >
+                        <option value={0}>Low</option>
+                        <option value={1}>Medium</option>
+                        <option value={2}>High</option>
+                    </select>
+                </div>
                 {error && <div className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded">{error}</div>}
+                {showNoPriceConfirm && (
+                    <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
+                        <p className="text-sm text-orange-900 dark:text-orange-100 font-medium mb-2">
+                            No price specified. Are you sure you want to continue?
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowNoPriceConfirm(false);
+                                    handleConfirm();
+                                }}
+                                className="flex-1 bg-orange-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-orange-700"
+                            >
+                                Yes, Continue
+                            </button>
+                            <button
+                                onClick={() => setShowNoPriceConfirm(false)}
+                                className="flex-1 bg-zinc-300 dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100 px-3 py-1.5 rounded text-xs font-medium hover:bg-zinc-400 dark:hover:bg-zinc-500"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
                 {showDeleteConfirm && (
                     <div className="absolute inset-0 bg-white/95 dark:bg-zinc-800/95 rounded-lg flex flex-col items-center justify-center p-6 backdrop-blur-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-12 h-12 text-red-600 mb-3">
@@ -264,31 +346,43 @@ function ItemCard({ item, onUpdate }: { item: ItemType; onUpdate: () => void }) 
         );
     }
 
+    const priority = getPriorityFromValue(item.item_priority);
+    const priorityStyles = getPriorityStyles(priority);
+
     return (
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow dark:border-zinc-700 dark:bg-zinc-800 flex flex-col min-h-[220px] relative">
-            {item.link ? (
-                <a
-                    href={item.link.startsWith("http") ? item.link : `https://${item.link}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline block truncate mb-3 font-medium"
-                >
-                    {item.item_name}
-                </a>
-            ) : (
-                <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3 truncate">
-                    {item.item_name}
-                </div>
-            )}
+        <div className={`rounded-lg border-2 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col min-h-[220px] relative ${priorityStyles.border} ${priorityStyles.bg}`}>
             <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="absolute top-4 right-4 text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-500 transition-colors"
+                className="absolute top-2 right-2 text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-500 transition-colors z-10"
                 title="Delete item"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                     <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 0 1 3.878.512.75.75 0 1 1-.256 1.478l-.209-.035-1.005 13.07a3 3 0 0 1-2.991 2.77H8.084a3 3 0 0 1-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 0 1-.256-1.478A48.567 48.567 0 0 1 7.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 0 1 3.369 0c1.603.051 2.815 1.387 2.815 2.951Zm-6.136-1.452a51.196 51.196 0 0 1 3.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 0 0-6 0v-.113c0-.794.609-1.428 1.364-1.452Zm-.355 5.945a.75.75 0 1 0-1.5.058l.347 9a.75.75 0 1 0 1.499-.058l-.346-9Zm5.48.058a.75.75 0 1 0-1.498-.058l-.347 9a.75.75 0 0 0 1.5.058l.345-9Z" clipRule="evenodd" />
                 </svg>
             </button>
+            <div className="flex items-start justify-between gap-2 mb-3 pr-6">
+                <div className="flex-1">
+                    {item.link ? (
+                        <a
+                            href={item.link.startsWith("http") ? item.link : `https://${item.link}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 hover:underline block font-medium"
+                        >
+                            {item.item_name}
+                        </a>
+                    ) : (
+                        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            {item.item_name}
+                        </div>
+                    )}
+                </div>
+                
+                {/* Priority Badge */}
+                <span className={`whitespace-nowrap text-xs font-semibold px-2 py-1 rounded-full ${priorityStyles.badge}`}>
+                    {priorityStyles.label}
+                </span>
+            </div>
             {showDeleteConfirm && (
                 <div className="absolute inset-0 bg-white/95 dark:bg-zinc-800/95 rounded-lg flex flex-col items-center justify-center p-6 backdrop-blur-sm z-10">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-12 h-12 text-red-600 mb-3">
@@ -314,9 +408,15 @@ function ItemCard({ item, onUpdate }: { item: ItemType; onUpdate: () => void }) 
                 </div>
             )}
             <div className="flex-1 mb-4">
-                <div className="text-sm text-zinc-700 dark:text-zinc-400 mb-2">
-                    ${item.lower_price} - ${item.upper_price}
-                </div>
+                {item.lower_price > 0 || item.upper_price > 0 ? (
+                    <div className="text-sm text-zinc-700 dark:text-zinc-400 mb-2">
+                        ${item.lower_price.toLocaleString()} - ${item.upper_price.toLocaleString()}
+                    </div>
+                ) : (
+                    <div className="text-sm text-zinc-500 dark:text-zinc-500 mb-2 italic">
+                        No price specified
+                    </div>
+                )}
                 {item.description && item.description.length > 150 ? (
                     <div className="text-sm text-zinc-700 dark:text-zinc-300">
                         <div className={isDescriptionExpanded ? "" : "line-clamp-3"}>
@@ -409,14 +509,22 @@ function ItemsList() {
     const [lowerPrice, setLowerPrice] = useState(0);
     const [link, setLink] = useState("");
     const [description, setDescription] = useState("");
+    const [itemPriority, setItemPriority] = useState(0);
     const [createError, setCreateError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [showNoPriceConfirm, setShowNoPriceConfirm] = useState(false);
 
     const handleCreate = async () => {
-        const dto = new ItemDTO(itemName, upperPrice, lowerPrice, link || null, description || null);
+        const dto = new ItemDTO(itemName, upperPrice, lowerPrice, link || null, description || null, itemPriority);
         const validation = validateItemDTO(dto);
         if (!validation.valid) {
             setCreateError(validation.error || "Validation failed");
+            return;
+        }
+
+        // Check if no price and ask for confirmation
+        if (dto.hasNoPrice() && !showNoPriceConfirm) {
+            setShowNoPriceConfirm(true);
             return;
         }
 
@@ -439,6 +547,7 @@ function ItemsList() {
             setLowerPrice(0);
             setLink("");
             setDescription("");
+            setItemPriority(0);
             refetch();
         } catch (err: any) {
             setCreateError(err?.message || String(err));
@@ -454,6 +563,8 @@ function ItemsList() {
         setLowerPrice(0);
         setLink("");
         setDescription("");
+        setItemPriority(0);
+        setShowNoPriceConfirm(false);
         setCreateError(null);
     };
 
@@ -530,7 +641,43 @@ function ItemsList() {
                                 rows={3}
                             />
                         </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Priority</label>
+                            <select
+                                value={itemPriority}
+                                onChange={(e) => setItemPriority(Number(e.target.value))}
+                                className="border rounded px-3 py-2 text-sm dark:bg-zinc-700 dark:border-zinc-600 dark:text-zinc-100"
+                            >
+                                <option value={0}>Low</option>
+                                <option value={1}>Medium</option>
+                                <option value={2}>High</option>
+                            </select>
+                        </div>
                         {createError && <div className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded">{createError}</div>}
+                        {showNoPriceConfirm && (
+                            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
+                                <p className="text-sm text-orange-900 dark:text-orange-100 font-medium mb-2">
+                                    No price specified. Are you sure you want to continue?
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            setShowNoPriceConfirm(false);
+                                            handleCreate();
+                                        }}
+                                        className="flex-1 bg-orange-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-orange-700"
+                                    >
+                                        Yes, Continue
+                                    </button>
+                                    <button
+                                        onClick={() => setShowNoPriceConfirm(false)}
+                                        className="flex-1 bg-zinc-300 dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100 px-3 py-1.5 rounded text-xs font-medium hover:bg-zinc-400 dark:hover:bg-zinc-500"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                         <div className="flex gap-2 mt-auto">
                             <button
                                 onClick={handleCreate}

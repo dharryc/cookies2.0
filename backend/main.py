@@ -5,7 +5,7 @@ import jwt, sqlite3, secrets, time
 from fastapi import Depends, FastAPI, HTTPException, Request, status, Response
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
-from models.cookieUser import CookieUser, CookieUserDTO, CookieUserLoginDTO, CookieUserProfileDTO, CookieUserUpdateDTO
+from models.cookieUser import CookieUser, CookieUserDTO, CookieUserLoginDTO, CookieUserProfileDTO, CookieUserUpdateDTO, PasswordResetDTO
 from models.item import ItemDTO
 from models.pod import PodCreateDTO
 
@@ -24,6 +24,16 @@ with open('init.sql', 'r') as f:
     sql_script = f.read()
 con.executescript(sql_script)
 con.commit()
+
+# Run migrations on startup
+from alterDb import db_migration
+try:
+    db_migration(cur)
+    con.commit()
+    print("Database migrations completed successfully")
+except Exception as e:
+    print(f"Migration error (non-fatal): {e}")
+    con.rollback()
 
 
 async def get_token_from_request(request: Request) -> str:
@@ -283,7 +293,7 @@ async def get_all_items(
     current_user: Annotated[CookieUser, Depends(get_current_active_user)],
 ):
     query = """
-    SELECT id, item_name, user_id, upper_price, lower_price, link, description FROM item WHERE user_id = ?
+    SELECT id, item_name, user_id, upper_price, lower_price, link, description, item_priority FROM item WHERE user_id = ?
     """
     cur.execute(query, (current_user.id,))
     items = cur.fetchall()
@@ -314,8 +324,8 @@ async def create_item(
     current_user: Annotated[CookieUser, Depends(get_current_active_user)],
 ):
     try:
-        query = "INSERT INTO item (item_name, user_id, upper_price, lower_price, link, description) VALUES (?, ?, ?, ?, ?, ?)"
-        cur.execute(query, (itemData.item_name, current_user.id, itemData.upper_price, itemData.lower_price, itemData.link, itemData.description))
+        query = "INSERT INTO item (item_name, user_id, upper_price, lower_price, link, description, item_priority) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        cur.execute(query, (itemData.item_name, current_user.id, itemData.upper_price, itemData.lower_price, itemData.link, itemData.description, itemData.item_priority))
         con.commit()
         return {"msg": "Item created successfully", "item_id": cur.lastrowid}
     except Exception as e:
@@ -328,8 +338,8 @@ async def update_item(
     current_user: Annotated[CookieUser, Depends(get_current_active_user)],
 ):
     try:
-        query = "UPDATE item SET item_name = ?, upper_price = ?, lower_price = ?, link = ?, description = ? WHERE id = ? AND user_id = ?"
-        cur.execute(query, (itemData.item_name, itemData.upper_price, itemData.lower_price, itemData.link, itemData.description, item_id, current_user.id))
+        query = "UPDATE item SET item_name = ?, upper_price = ?, lower_price = ?, link = ?, description = ?, item_priority = ? WHERE id = ? AND user_id = ?"
+        cur.execute(query, (itemData.item_name, itemData.upper_price, itemData.lower_price, itemData.link, itemData.description, itemData.item_priority, item_id, current_user.id))
         con.commit()
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Item not found or not owned by user")
@@ -632,7 +642,7 @@ async def get_pod_details(
         # Get all items for this user that are in this pod
         items_query = """
         SELECT i.id, i.item_name, i.link, i.description, i.purchased, 
-               i.upper_price, i.lower_price, iip.purchased_by
+               i.upper_price, i.lower_price, i.item_priority, iip.purchased_by
         FROM item i
         JOIN item_in_pod iip ON i.id = iip.item_id
         WHERE iip.pod_id = ? AND i.user_id = ?
@@ -650,7 +660,8 @@ async def get_pod_details(
                 "purchased": bool(item_row["purchased"]),
                 "purchased_by": item_row["purchased_by"],
                 "upper_price": item_row["upper_price"],
-                "lower_price": item_row["lower_price"]
+                "lower_price": item_row["lower_price"],
+                "item_priority": item_row["item_priority"]
             })
 
         items_by_member[key] = {
@@ -809,19 +820,98 @@ async def join_pod_by_code(
         con.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to join pod via invite: {str(e)}")
     
-@app.get("/db/migrate")
-async def run_db_migration(current_user: Annotated[CookieUser, Depends(get_current_active_user)]):
-    from alterDb import db_migration
-    if(current_user.is_admin != 1):
-        raise HTTPException(status_code=403, detail="Admin privileges required for migration")
+
+@app.post("/admin/password-reset-token")
+async def create_password_reset_token(
+    user_id: int,
+    current_user: Annotated[CookieUser, Depends(get_current_active_user)],
+    expires_minutes: int = 60,
+):
+    # Check if current user is admin
+    if current_user.is_admin != 1:
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+    
     try:
-        db_migration(cur)
+        # Check if the target user exists
+        user_check_query = "SELECT id FROM cookie_user WHERE id = ?"
+        cur.execute(user_check_query, (user_id,))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Generate a secure token
+        token = secrets.token_urlsafe(32)
+        now = int(time.time())
+        expires_at = now + (expires_minutes * 60)
+        
+        # Insert the token into the database
+        insert_query = """
+        INSERT INTO password_reset_token (token, user_id, created_at, expires_at, used)
+        VALUES (?, ?, ?, ?, 0)
+        """
+        cur.execute(insert_query, (token, user_id, now, expires_at))
         con.commit()
-        return {"msg": "Database migration completed"}
+        
+        return {
+            "token": token,
+            "user_id": user_id,
+            "expires_at": expires_at,
+            "expires_in_minutes": expires_minutes
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         con.rollback()
-        raise HTTPException(status_code=500, detail=f"Database migration failed: {str(e)}")
-    
+        raise HTTPException(status_code=500, detail=f"Failed to create password reset token: {str(e)}")
+
+
+@app.post("/password-reset")
+async def reset_password(resetData: PasswordResetDTO):
+    try:
+        # Look up the token
+        token_query = "SELECT user_id, expires_at, used FROM password_reset_token WHERE token = ?"
+        cur.execute(token_query, (resetData.token,))
+        token_row = cur.fetchone()
+        
+        if token_row is None:
+            raise HTTPException(status_code=404, detail="Invalid reset token")
+        
+        token_user_id = token_row["user_id"]
+        expires_at = token_row["expires_at"]
+        used = token_row["used"]
+        now = int(time.time())
+        
+        # Check if token is expired
+        if expires_at < now:
+            raise HTTPException(status_code=400, detail="Reset token has expired")
+        
+        # Check if token has already been used
+        if used:
+            raise HTTPException(status_code=400, detail="Reset token has already been used")
+        
+        # Verify username matches the user_id from the token
+        user_query = "SELECT id FROM cookie_user WHERE username = ? AND id = ?"
+        cur.execute(user_query, (resetData.username, token_user_id))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=403, detail="Username does not match reset token")
+        
+        # Hash the new password and update
+        new_hashed_password = get_password_hash(resetData.new_password)
+        update_query = "UPDATE cookie_user SET hashed_password = ? WHERE id = ?"
+        cur.execute(update_query, (new_hashed_password, token_user_id))
+        
+        # Mark token as used
+        mark_used_query = "UPDATE password_reset_token SET used = 1 WHERE token = ?"
+        cur.execute(mark_used_query, (resetData.token,))
+        
+        con.commit()
+        return {"msg": "Password reset successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        con.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to reset password: {str(e)}")
+
 
 @app.put("/user")
 async def update_user_profile(

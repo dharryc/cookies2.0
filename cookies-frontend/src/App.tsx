@@ -8,9 +8,9 @@ import Home from './pages/Home';
 import Register from './pages/Register';
 import Welcome from './pages/Welcome';
 import Items from './pages/Items';
-import ManagePods from './pages/ManagePods';
 import Pod from './pages/Pod';
 import Profile from './pages/Profile';
+import PasswordReset from './pages/PasswordReset';
 
 const validateUserSession = async (): Promise<boolean | string> => {
   const response = await fetch(`${apiUrl}/validate`, {
@@ -22,11 +22,10 @@ const validateUserSession = async (): Promise<boolean | string> => {
 
 function App() {
   const [loggedIn, setLoggedIn] = useState<boolean | string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/register', '/welcome'];
+  const publicRoutes = ['/register', '/welcome', '/password-reset'];
   const isPublicRoute = publicRoutes.includes(location.pathname);
 
   useEffect(() => {
@@ -57,6 +56,7 @@ function App() {
         <Routes>
           <Route path="/register" element={<Register />} />
           <Route path="/welcome" element={<Welcome />} />
+          <Route path="/password-reset" element={<PasswordReset />} />
         </Routes>
       </div>
     );
@@ -87,8 +87,6 @@ function App() {
     <PodsProvider>
       <div className="flex h-screen overflow-hidden">
         <NavBar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
           setLoggedIn={setLoggedIn}
         />
 
@@ -96,7 +94,6 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/items" element={<Items />} />
-            <Route path="/manage-pods" element={<ManagePods />} />
             <Route path="/pod/:id" element={<Pod />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/welcome" element={<Welcome />} />

@@ -13,7 +13,7 @@ def db_migration(db):
         print('Successfully added is_admin column')
 
     try:
-        db.execute('ALTER TABLE cookie_user ADD COLUMN item_priority INTEGER NOT NULL DEFAULT 0;')
+        db.execute('ALTER TABLE item ADD COLUMN item_priority INTEGER NOT NULL DEFAULT 1;')
     except Exception as e:
         err_msg = str(e)
         if 'duplicate column name' in err_msg:

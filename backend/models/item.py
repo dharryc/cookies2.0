@@ -7,6 +7,7 @@ class ItemDTO(BaseModel):
     lower_price: Optional[int] = None
     link: Optional[str] = None
     description: Optional[str] = None
+    item_priority: Optional[int] = 1
 
     @model_validator(mode='after')
     def link_or_description_must_exist(self):
@@ -28,6 +29,7 @@ class Item(BaseModel):
     link: Optional[str] = None
     description: Optional[str] = None
     purchased: bool
+    item_priority: int = 1
     
     @model_validator(mode='after')
     def link_or_description_must_exist(self):

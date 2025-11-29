@@ -19,6 +19,16 @@ type UpdateProfileData = {
     birthday: string;
 };
 
+type User = {
+    id: number;
+    username: string;
+    first_name: string;
+    surname: string;
+    hashed_password: string;
+    birthday: string;
+    is_admin: number;
+};
+
 export default function ProfilePage() {
     const navigate = useNavigate();
     const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -30,6 +40,12 @@ export default function ProfilePage() {
     const [deleting, setDeleting] = useState(false);
     const [editing, setEditing] = useState(false);
     const [updateData, setUpdateData] = useState<UpdateProfileData>();
+    const [showAllUsers, setShowAllUsers] = useState(false);
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+    const [generatingToken, setGeneratingToken] = useState<number | null>(null);
+    const [resetTokens, setResetTokens] = useState<Map<number, { token: string; expires_at: number }>>(new Map());
+    const [copiedTokenId, setCopiedTokenId] = useState<number | null>(null);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -90,6 +106,55 @@ export default function ProfilePage() {
         }
     };
 
+    const handleFetchAllUsers = async () => {
+        setLoadingUsers(true);
+        try {
+            const res = await fetch(`${apiUrl}/allusers`, {
+                credentials: "include",
+                cache: "no-store",
+            });
+            if (!res.ok) {
+                const txt = await res.text();
+                throw new Error(`${res.status} ${txt}`);
+            }
+            const data = await res.json();
+            setAllUsers(data);
+            setShowAllUsers(true);
+            setError(null);
+        } catch (err: any) {
+            setError(err?.message || String(err));
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
+
+    const handleGenerateResetToken = async (userId: number) => {
+        setGeneratingToken(userId);
+        try {
+            const res = await fetch(`${apiUrl}/admin/password-reset-token?user_id=${userId}&expires_minutes=60`, {
+                method: "POST",
+                credentials: "include",
+            });
+            if (!res.ok) {
+                const txt = await res.text();
+                throw new Error(`${res.status} ${txt}`);
+            }
+            const data = await res.json();
+            setResetTokens(new Map(resetTokens.set(userId, { token: data.token, expires_at: data.expires_at })));
+            setError(null);
+        } catch (err: any) {
+            setError(err?.message || String(err));
+        } finally {
+            setGeneratingToken(null);
+        }
+    };
+
+    const handleCopyResetToken = async (token: string, userId: number) => {
+        await navigator.clipboard.writeText(token);
+        setCopiedTokenId(userId);
+        setTimeout(() => setCopiedTokenId(null), 2000);
+    };
+
     if (loading) return <div className="p-8 text-center">Loading profile...</div>;
     if (error) return <div className="p-8 text-center text-red-600">Error: {error}</div>;
     if (!profile) return <div className="p-8 text-center">No profile data</div>;
@@ -115,7 +180,7 @@ export default function ProfilePage() {
                                     </div>
                                     <button
                                         onClick={handleCopyId}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                        className="px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors flex items-center gap-2"
                                     >
                                         {copied ? (
                                             <>
@@ -155,7 +220,7 @@ export default function ProfilePage() {
                             <div>
                                 <button
                                     onClick={() => setEditing(!editing)}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                    className="px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors flex items-center gap-2"
                                 >
                                     {editing ? "Stop Editing" : "Edit Profile"}
                                 </button>
@@ -208,7 +273,7 @@ export default function ProfilePage() {
                             className="flex">
                                 <button
                                     onClick={() => setEditing(!editing)}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 mr-3"
+                                    className="px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors flex items-center gap-2 mr-3"
                                 >
                                     {editing ? "Stop Editing" : "Edit Profile"}
                                 </button>
@@ -230,7 +295,7 @@ export default function ProfilePage() {
                                             });
                                     }
                                     }
-                                    className="px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 transition-colors flex items-center gap-2"
+                                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2"
                                 >
                                     Save Changes
                                 </button>
@@ -241,21 +306,95 @@ export default function ProfilePage() {
             }
             {
                 profile.is_admin && (
-                    <div>
-                        <div>
-                            <button className="mt-6 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
-                                onClick={() => navigate("/manage-pods")}
+                    <div className="mt-6">
+                        <div className="flex gap-2">
+                            <button 
+                                className="px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800"
+                                onClick={handleFetchAllUsers}
+                                disabled={loadingUsers}
                             >
-                                Update Database
+                                {loadingUsers ? "Loading..." : showAllUsers ? "Refresh All Users" : "Show All Users"}
                             </button>
+                            {showAllUsers && (
+                                <button 
+                                    className="px-4 py-2 bg-zinc-600 text-white rounded-lg text-sm font-medium hover:bg-zinc-700"
+                                    onClick={() => setShowAllUsers(false)}
+                                >
+                                    Hide Users
+                                </button>
+                            )}
                         </div>
-                        <div>
-                            <button className="mt-6 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
-                                onClick={() => navigate("/admin")}
-                            >
-                                All users
-                            </button>
-                        </div>
+                        
+                        {showAllUsers && allUsers.length > 0 && (
+                            <div className="mt-6 bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead className="bg-zinc-50 dark:bg-zinc-700">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">ID</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Username</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Name</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Birthday</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Admin</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+                                            {allUsers.map((user) => (
+                                                <tr key={user.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50">
+                                                    <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{user.id}</td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{user.username}</td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">
+                                                        {capitalize(user.first_name)} {capitalize(user.surname)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{user.birthday}</td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        {user.is_admin ? (
+                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                                                Yes
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-400">
+                                                                No
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        <div className="flex flex-col gap-2">
+                                                            <button
+                                                                onClick={() => handleGenerateResetToken(user.id)}
+                                                                disabled={generatingToken === user.id}
+                                                                className="px-3 py-1 bg-amber-500 text-white rounded text-xs font-medium hover:bg-amber-600 disabled:opacity-50"
+                                                            >
+                                                                {generatingToken === user.id ? "Generating..." : "Reset Password"}
+                                                            </button>
+                                                            {resetTokens.has(user.id) && (
+                                                                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded p-2">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <code className="text-xs font-mono text-orange-900 dark:text-orange-100 break-all">
+                                                                            {resetTokens.get(user.id)!.token}
+                                                                        </code>
+                                                                        <button
+                                                                            onClick={() => handleCopyResetToken(resetTokens.get(user.id)!.token, user.id)}
+                                                                            className="px-2 py-1 bg-amber-500 text-white rounded text-xs hover:bg-amber-600 shrink-0"
+                                                                        >
+                                                                            {copiedTokenId === user.id ? "Copied!" : "Copy"}
+                                                                        </button>
+                                                                    </div>
+                                                                    <p className="text-xs text-orange-700 dark:text-orange-300">
+                                                                        Expires: {new Date(resetTokens.get(user.id)!.expires_at * 1000).toLocaleString()}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )
             }
@@ -269,7 +408,7 @@ export default function ProfilePage() {
                 {deleteStep === 0 && (
                     <button
                         onClick={() => setDeleteStep(1)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
+                        className="px-4 py-2 bg-rose-500 text-white rounded-lg text-sm font-medium hover:bg-rose-600"
                     >
                         Delete Account
                     </button>
@@ -287,7 +426,7 @@ export default function ProfilePage() {
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setDeleteStep(2)}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
+                                    className="px-4 py-2 bg-rose-500 text-white rounded-lg text-sm font-medium hover:bg-rose-600"
                                 >
                                     Yes, Continue
                                 </button>
@@ -322,7 +461,7 @@ export default function ProfilePage() {
                                 <button
                                     onClick={handleDeleteAccount}
                                     disabled={usernameConfirm !== profile.username || deleting}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-4 py-2 bg-rose-500 text-white rounded-lg text-sm font-medium hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {deleting ? "Deleting..." : "Delete My Account"}
                                 </button>

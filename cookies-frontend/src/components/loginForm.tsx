@@ -33,7 +33,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
 
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) {
-        setError(data?.message || `Login failed (${res.status})`);
+        setError(data?.message || data?.detail || `Login failed (${res.status})`);
         setLoading(false);
         return;
       }
@@ -48,7 +48,8 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
         console.error("onSuccess callback error:", err);
       }
     } catch (err) {
-      setError((err as Error)?.message || "Network error");
+      console.error("Login error:", err);
+      setError(`Network error: ${(err as Error)?.message || 'Unable to connect to server. Please check if the backend is running.'}`);
       setLoading(false);
     }
   };
@@ -91,7 +92,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       <button
         type="submit"
         disabled={loading}
-        className="mb-3 w-full rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-60"
+        className="mb-3 w-full rounded bg-sky-500 px-4 py-2 text-white hover:bg-sky-600 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loading ? "Signing in…" : "Sign in"}
       </button>
@@ -107,6 +108,13 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
         Not registered?{" "}
         <a href="/register" className="text-blue-600 hover:underline dark:text-blue-400">
           Create an account!
+        </a>
+      </div>
+
+      <div className="mt-2 text-center text-xs text-zinc-600 dark:text-zinc-400">
+        Forgot your password?{" "}
+        <a href="/password-reset" className="text-blue-600 hover:underline dark:text-blue-400">
+          Reset it here
         </a>
       </div>
     </form>

@@ -34,3 +34,8 @@ class CookieUserUpdateDTO(BaseModel):
     first_name: Optional[str] = None
     surname: Optional[str] = None
     birthday: Optional[str] = None
+
+class PasswordResetDTO(BaseModel):
+    username: str
+    token: str
+    new_password: str

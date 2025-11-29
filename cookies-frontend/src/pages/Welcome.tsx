@@ -23,11 +23,11 @@ export default function WelcomePage() {
                     <ol className="space-y-3 text-zinc-700 dark:text-zinc-300">
                         <li className="flex gap-3">
                             <span className="shrink-0 w-6 h-6 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full flex items-center justify-center text-sm font-bold">1</span>
-                            <span>Create <strong>Items</strong> - add gifts you'd like to receive with links, descriptions, and price ranges</span>
+                            <span>Create or join <strong>Pods</strong> - groups where you share wishlists with friends and family</span>
                         </li>
                         <li className="flex gap-3">
                             <span className="shrink-0 w-6 h-6 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full flex items-center justify-center text-sm font-bold">2</span>
-                            <span>Join or create <strong>Pods</strong> - groups where you share wishlists with friends and family</span>
+                            <span>Create <strong>Items</strong> - add gifts you'd like to receive with links, descriptions, price ranges, and priority levels</span>
                         </li>
                         <li className="flex gap-3">
                             <span className="shrink-0 w-6 h-6 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full flex items-center justify-center text-sm font-bold">3</span>
@@ -49,19 +49,19 @@ export default function WelcomePage() {
                         <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
                             <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-2">Items</h3>
                             <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                                Your personal wishlist items. Add links, descriptions, and price ranges for gifts you'd like.
+                                Your personal wishlist items. Add links, descriptions, price ranges, and set priority levels (low, medium, high).
                             </p>
                         </div>
                         <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
                             <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-2">Pods</h3>
                             <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                                Groups of people who share wishlists. Create pods for family, friends, or coworkers.
+                                Groups of people who share wishlists. Create pods or join with invite codes from friends and family.
                             </p>
                         </div>
                         <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
-                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-2">Visibility</h3>
+                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-2">Priority Colors</h3>
                             <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                                Control which pods can see each item. Same item can appear in multiple pods.
+                                Items display with colored borders and tinted backgrounds: green (high priority), yellow (medium priority), or red (low priority) to show importance.
                             </p>
                         </div>
                         <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
@@ -82,22 +82,29 @@ export default function WelcomePage() {
                         <div className="flex gap-3 items-start">
                             <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-bold">1</div>
                             <div>
-                                <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Join or create a pod</h4>
-                                <p className="text-sm text-zinc-600 dark:text-zinc-300">Use <strong>Manage Pods</strong> to create your own or join with an invite code from friends</p>
+                                <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Create or join a pod</h4>
+                                <p className="text-sm text-zinc-600 dark:text-zinc-300">On the <strong>Home</strong> page, use <strong>Create Pod</strong> to make your own or <strong>Join Pod</strong> with an invite code from friends</p>
                             </div>
                         </div>
                         <div className="flex gap-3 items-start">
                             <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-bold">2</div>
                             <div>
                                 <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Add your wishlist items</h4>
-                                <p className="text-sm text-zinc-600 dark:text-zinc-300">Go to <strong>Items</strong> and create gifts you'd like to receive</p>
+                                <p className="text-sm text-zinc-600 dark:text-zinc-300">Go to <strong>Items</strong> and create gifts you'd like to receive with priority levels</p>
                             </div>
                         </div>
                         <div className="flex gap-3 items-start">
                             <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-bold">3</div>
                             <div>
-                                <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Make items visible</h4>
-                                <p className="text-sm text-zinc-600 dark:text-zinc-300">Edit each item and use "Manage Visibility" to choose which pods can see it</p>
+                                <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Make items visible to pods</h4>
+                                <p className="text-sm text-zinc-600 dark:text-zinc-300">Click "Manage Visibility" on each item to choose which pods can see it</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3 items-start">
+                            <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-bold">4</div>
+                            <div>
+                                <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Browse and shop</h4>
+                                <p className="text-sm text-zinc-600 dark:text-zinc-300">Click on any pod to see member wishlists and mark items as purchased when you buy them</p>
                             </div>
                         </div>
                     </div>

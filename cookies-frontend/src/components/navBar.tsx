@@ -3,110 +3,50 @@ import { Link } from "react-router-dom";
 import apiUrl from "./apiUrl";
 
 type NavBarProps = {
-  sidebarOpen: boolean;
-  setSidebarOpen: (v: boolean) => void;
   setLoggedIn: React.Dispatch<React.SetStateAction<boolean | string | null>>;
 };
 
 export default function NavBar({
-  sidebarOpen,
-  setSidebarOpen,
   setLoggedIn,
 }: NavBarProps) {
-  const widthClass = sidebarOpen ? "md:w-64" : "md:w-16";
-
   return (
     <aside
-      className={`${widthClass} fixed bottom-0 left-0 right-0 md:static md:flex-col flex-row border-t md:border-t-0 md:border-r border-zinc-200 bg-white transition-all duration-300 dark:border-zinc-700 dark:bg-zinc-900 z-50`}
+      className="md:w-52 fixed bottom-0 left-0 right-0 md:static md:flex-col flex-row border-t md:border-t-0 md:border-r border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900 z-50"
     >
       {/* Desktop sidebar */}
-      <div className="hidden md:flex h-full flex-col p-4">
-        {/* Header with brand and toggle */}
-        <div
-          className={`mb-6 flex items-center ${
-            sidebarOpen ? "justify-between" : "justify-center"
-          }`}
+      <div className="hidden md:flex h-full flex-col p-6">
+        {/* Header with brand */}
+        <Link
+          to="/"
+          className="mb-8 flex items-center gap-3 py-2 px-3 rounded-lg text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
         >
-          {sidebarOpen && (
-            <Link
-              to="/"
-              className="flex items-center gap-2 text-zinc-900 dark:text-zinc-100 hover:text-zinc-700 dark:hover:text-zinc-300"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-5 w-5 shrink-0"
-              >
-                <path d="M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z" />
-                <path d="m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.432Z" />
-              </svg>
-              <div className="text-lg font-extrabold">Cookies Gifts</div>
-            </Link>
-          )}
-
-          {!sidebarOpen && (
-            <Link
-              to="/"
-              className="rounded p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-5 w-5"
-              >
-                <path d="M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z" />
-                <path d="m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.432Z" />
-              </svg>
-            </Link>
-          )}
-
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="rounded p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="h-6 w-6 shrink-0"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="h-5 w-5"
-            >
-              {sidebarOpen ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15.75 19.5L8.25 12l7.5-7.5"
-                />
-              ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                />
-              )}
-            </svg>
-          </button>
-        </div>
+            <path
+              fillRule="evenodd"
+              d="M3 6a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3V6ZM3 15.75a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2.25Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3v-2.25Z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <div className="text-lg font-extrabold">My Pods</div>
+        </Link>
 
         {/* Navigation */}
         <nav>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Link
               to="/profile"
-              className={`flex items-center gap-2 rounded py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 ${
-                sidebarOpen ? "px-3 justify-start" : "px-0 justify-center"
-              }`}
+              className="flex items-center gap-3 py-2 px-3 rounded-lg text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="currentColor"
-                className="h-5 w-5 shrink-0"
-                aria-hidden="true"
+                className="h-6 w-6 shrink-0"
               >
                 <path
                   fillRule="evenodd"
@@ -114,22 +54,18 @@ export default function NavBar({
                   clipRule="evenodd"
                 />
               </svg>
-
-              {sidebarOpen && <span>Profile</span>}
+              <div className="text-lg font-extrabold">Profile</div>
             </Link>
 
             <Link
               to="/items"
-              className={`flex items-center gap-2 rounded py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 ${
-                sidebarOpen ? "px-3 justify-start" : "px-0 justify-center"
-              }`}
+              className="flex items-center gap-3 py-2 px-3 rounded-lg text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="currentColor"
-                className="h-5 w-5 shrink-0"
-                aria-hidden="true"
+                className="h-6 w-6 shrink-0"
               >
                 <path
                   fillRule="evenodd"
@@ -137,37 +73,32 @@ export default function NavBar({
                   clipRule="evenodd"
                 />
               </svg>
-
-              {sidebarOpen && <span>Items</span>}
+              <div className="text-lg font-extrabold">Items</div>
             </Link>
 
             <Link
-              to="/manage-pods"
-              className={`flex items-center gap-2 rounded py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 ${
-                sidebarOpen ? "px-3 justify-start" : "px-0 justify-center"
-              }`}
+              to="/welcome"
+              className="flex items-center gap-3 py-2 px-3 rounded-lg text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="currentColor"
-                className="h-5 w-5 shrink-0"
-                aria-hidden="true"
+                className="h-6 w-6 shrink-0"
               >
                 <path
                   fillRule="evenodd"
-                  d="M3 6a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3V6ZM3 15.75a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2.25Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3v-2.25Z"
+                  d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 0 1 .67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 1 1-.671-1.34l.041-.022ZM12 9a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"
                   clipRule="evenodd"
                 />
               </svg>
-
-              {sidebarOpen && <span>Manage Pods</span>}
+              <div className="text-lg font-extrabold">Info</div>
             </Link>
           </div>
         </nav>
 
         {/* Logout button */}
-        <div className="mt-auto">
+        <div className="mt-auto pt-6">
           <button
             onClick={async () => {
               try {
@@ -182,18 +113,16 @@ export default function NavBar({
                 setLoggedIn(false);
               }
             }}
-            className={`w-full rounded bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700 ${
-              sidebarOpen ? "px-3" : "px-0"
-            }`}
+            className="w-full rounded-lg bg-rose-500 py-2.5 px-4 text-sm font-semibold text-white hover:bg-rose-600 transition-colors"
             title="Logout"
           >
-            {sidebarOpen ? "Logout" : "⏻"}
+            Logout
           </button>
         </div>
       </div>
 
       {/* Mobile bottom nav */}
-      <div className="flex md:hidden items-center justify-around px-4 py-3">
+      <div className="flex md:hidden items-center justify-around px-2 py-3 safe-area-inset-bottom">
         <Link
           to="/"
           className="flex flex-col items-center gap-1 text-xs font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
@@ -202,12 +131,15 @@ export default function NavBar({
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="h-6 w-6"
+            className="h-5 w-5 shrink-0"
           >
-            <path d="M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z" />
-            <path d="m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.432Z" />
+            <path
+              fillRule="evenodd"
+              d="M3 6a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3V6ZM3 15.75a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2.25Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3v-2.25Z"
+              clipRule="evenodd"
+            />
           </svg>
-          <span>Home</span>
+          <span className="text-[10px]">Pods</span>
         </Link>
 
         <Link
@@ -218,7 +150,7 @@ export default function NavBar({
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="h-6 w-6"
+            className="h-5 w-5 shrink-0"
           >
             <path
               fillRule="evenodd"
@@ -226,7 +158,7 @@ export default function NavBar({
               clipRule="evenodd"
             />
           </svg>
-          <span>Profile</span>
+          <span className="text-[10px]">Profile</span>
         </Link>
 
         <Link
@@ -237,7 +169,7 @@ export default function NavBar({
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="h-6 w-6"
+            className="h-5 w-5 shrink-0"
           >
             <path
               fillRule="evenodd"
@@ -245,26 +177,26 @@ export default function NavBar({
               clipRule="evenodd"
             />
           </svg>
-          <span>Items</span>
+          <span className="text-[10px]">Items</span>
         </Link>
 
         <Link
-          to="/manage-pods"
+          to="/welcome"
           className="flex flex-col items-center gap-1 text-xs font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="h-6 w-6"
+            className="h-5 w-5 shrink-0"
           >
             <path
               fillRule="evenodd"
-              d="M3 6a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3v2.25a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3V6ZM3 15.75a3 3 0 0 1 3-3h2.25a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2.25Zm9.75 0a3 3 0 0 1 3-3H18a3 3 0 0 1 3 3V18a3 3 0 0 1-3 3h-2.25a3 3 0 0 1-3-3v-2.25Z"
+              d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 0 1 .67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 1 1-.671-1.34l.041-.022ZM12 9a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"
               clipRule="evenodd"
             />
           </svg>
-          <span>Pods</span>
+          <span className="text-[10px]">Info</span>
         </Link>
 
         <button
@@ -287,7 +219,7 @@ export default function NavBar({
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="h-6 w-6"
+            className="h-5 w-5 shrink-0"
           >
             <path
               fillRule="evenodd"
@@ -295,7 +227,7 @@ export default function NavBar({
               clipRule="evenodd"
             />
           </svg>
-          <span>Logout</span>
+          <span className="text-[10px]">Logout</span>
         </button>
       </div>
     </aside>

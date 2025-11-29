@@ -139,7 +139,7 @@ function CreatePodForm() {
                 <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-60"
+                    className="w-full rounded bg-sky-500 px-4 py-2 text-white hover:bg-sky-600 disabled:opacity-60"
                 >
                     {submitting ? "Creating..." : "Create Pod"}
                 </button>
