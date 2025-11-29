@@ -35,6 +35,13 @@ except Exception as e:
     print(f"Migration error (non-fatal): {e}")
     con.rollback()
 
+# Set first user as admin (if exists)
+try:
+    cur.execute("UPDATE cookie_user SET is_admin = 1 WHERE id = 1")
+    con.commit()
+except Exception as e:
+    print(f"Admin setup skipped: {e}")
+
 
 async def get_token_from_request(request: Request) -> str:
     auth = request.headers.get("Authorization")

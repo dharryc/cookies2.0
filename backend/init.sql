@@ -77,5 +77,3 @@ CREATE TABLE IF NOT EXISTS password_reset_token (
 	used INTEGER DEFAULT 0,
 	FOREIGN KEY (user_id) REFERENCES cookie_user(id) ON DELETE CASCADE
 );
-
-UPDATE cookie_user SET is_admin = 1 WHERE id = 1;
