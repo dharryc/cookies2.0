@@ -1,2 +1,2 @@
-const apiUrl = "http://localhost:8000";
+const apiUrl = "https://api.cookiesgifts.com";
 export default apiUrl;
