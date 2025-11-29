@@ -9,6 +9,7 @@ type ItemType = {
   lower_price: number;
   link: string;
   description: string;
+  item_priority: number;
   pods: Array<{ id: number; name: string }>;
 };
 

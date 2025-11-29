@@ -39,11 +39,6 @@ type SortOption = "none" | "price-low" | "price-high";
 
 type Priority = "high" | "medium" | "low";
 
-const getRandomPriority = (): Priority => {
-    const priorities: Priority[] = ["high", "medium", "low"];
-    return priorities[Math.floor(Math.random() * priorities.length)];
-};
-
 const getPriorityStyles = (priority: Priority) => {
     switch (priority) {
         case "high":
@@ -150,12 +145,12 @@ export default function PodPage() {
                 let info: PodInfo | null = null;
                 if (infoRes.ok) {
                     info = await infoRes.json();
-                    setPodName(info.name || "Pod Details");
+                    setPodName(info?.name || "Pod Details");
                     setPodInfo(info);
                     
                     // Create a map of user ID to name
                     const memberMap = new Map<number, string>();
-                    info.members.forEach(member => {
+                    info?.members.forEach(member => {
                         const [firstName, lastName] = member.name.split("|");
                         const capitalize = (str: string) => 
                             str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
