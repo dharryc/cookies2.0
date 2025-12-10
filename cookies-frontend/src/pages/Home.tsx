@@ -92,9 +92,26 @@ export default function Home() {
         <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-300">
           There are currently no pods to display.
         </p>
-        <Link to="/manage-pods" className="text-blue-500 hover:underline">
-          Create a new pod
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setShowCreatePod(!showCreatePod);
+              if (!showCreatePod) setShowJoinInput(false);
+            }}
+            className="px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors"
+          >
+            {showCreatePod ? "Cancel" : "Create Pod"}
+          </button>
+          <button
+            onClick={() => {
+              setShowJoinInput(!showJoinInput);
+              if (!showJoinInput) setShowCreatePod(false);
+            }}
+            className="px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 transition-colors"
+          >
+            {showJoinInput ? "Cancel" : "Join Pod"}
+          </button>
+        </div>
       </div>
     );
   }
