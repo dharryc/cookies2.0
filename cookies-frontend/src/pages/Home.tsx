@@ -112,6 +112,64 @@ export default function Home() {
             {showJoinInput ? "Cancel" : "Join Pod"}
           </button>
         </div>
+        {showCreatePod && (
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Create New Pod</h2>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newPodName}
+              onChange={(e) => setNewPodName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleCreatePod()}
+              placeholder="Enter pod name"
+              className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg text-sm dark:bg-zinc-700 dark:text-zinc-100"
+              autoFocus
+            />
+            <button
+              onClick={handleCreatePod}
+              disabled={creatingPod}
+              className="px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 disabled:opacity-50"
+            >
+              {creatingPod ? "Creating..." : "Create"}
+            </button>
+          </div>
+          {createError && (
+            <p className="text-xs mt-2 text-red-600 dark:text-red-400">
+              {createError}
+            </p>
+          )}
+        </div>
+      )}
+      
+      {/* Join by Invite Code - Collapsible */}
+      {showJoinInput && (
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Enter Invite Code</h2>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={joinCodeInput}
+              onChange={(e) => setJoinCodeInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleJoinByCode()}
+              placeholder="Enter invite code"
+              className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg text-sm dark:bg-zinc-700 dark:text-zinc-100"
+              autoFocus
+            />
+            <button
+              onClick={handleJoinByCode}
+              disabled={joining}
+              className="px-4 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-50"
+            >
+              {joining ? "Joining..." : "Join"}
+            </button>
+          </div>
+          {joinMsg && (
+            <p className={`text-xs mt-2 ${joinMsg.includes("success") || joinMsg.includes("Joined") ? "text-green-600 dark:text-green-400" : "text-zinc-600 dark:text-zinc-400"}`}>
+              {joinMsg}
+            </p>
+          )}
+        </div>
+      )}
       </div>
     );
   }
